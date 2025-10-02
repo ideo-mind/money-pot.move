@@ -139,9 +139,9 @@ module money_pot::money_pot_manager {
         assert!(pot.is_active, E_POT_NOT_ACTIVE);
         assert!(signer::address_of(hunter) != pot.creator, E_CREATOR_CANNOT_ATTEMPT);
 
-        pot.attempts_count = pot.attempts_count + 1;
+        pot.attempts_count+=1;
 
-        let attempt_id = registry.next_attempt_id;
+        let attempt_id = registry.next_attempt_id; //TODO: could be a string based on pot-id-attempts_count ... for /p/ processing
         registry.next_attempt_id = attempt_id + 1;
 
         let now = 0;
