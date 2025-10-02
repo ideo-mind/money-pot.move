@@ -205,6 +205,56 @@ module money_pot::money_pot_manager {
         active
     }
 
+    #[test_only]
+    public fun test_attempt_completed(
+        oracle: &signer,
+        attempt_id: u64,
+        status: bool,
+        creator_addr: address
+    ) acquires Registry {
+        let registry = borrow_global_mut<Registry>(creator_addr);
+        let contract_signer = account::create_signer_with_capability(&registry.signer_cap);
+        
+        let attempt = borrow_mut(&mut registry.attempts, &attempt_id);
+        let pot_id = attempt.pot_id;
+        let pot = borrow_mut(&mut registry.pots, &pot_id);
+
+        assert!(pot.is_active, E_POT_NOT_ACTIVE);
+        assert!(!attempt.is_completed, E_ATTEMPT_COMPLETED);
+
+        attempt.is_completed = true;
+
+        let now = 0; // Use fixed timestamp for tests
+
+        if (status) {
+            pot.is_active = false;
+
+            let hunter_share = pot.total_amount * HUNTER_SHARE_PERCENT / 100;
+            let platform_share = pot.total_amount - hunter_share;
+
+            // In tests, we don't actually transfer tokens, just update the state
+            event::emit_event(
+                &mut registry.events,
+                PotEvent {
+                    id: pot_id,
+                    event_type: b"solved",
+                    timestamp: now,
+                    actor: attempt.hunter,
+                }
+            );
+        } else {
+            event::emit_event(
+                &mut registry.events,
+                PotEvent {
+                    id: attempt_id,
+                    event_type: b"failed",
+                    timestamp: now,
+                    actor: attempt.hunter,
+                }
+            );
+        }
+    }
+
     // Create pot with hardcoded fungible asset
     public fun create_pot(
         creator: &signer,

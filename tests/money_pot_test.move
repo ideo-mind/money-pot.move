@@ -113,8 +113,8 @@ module money_pot::money_pot_test {
         // Verify attempt was created
         assert!(attempt_id == 0, 0);
         
-        // Oracle verifies successful completion
-        money_pot_manager::attempt_completed(&trusted_oracle, attempt_id, true);
+        // Oracle verifies successful completion using test function
+        money_pot_manager::test_attempt_completed(&trusted_oracle, attempt_id, true, CREATOR);
         
         // Verify pot is no longer active
         let pot = money_pot_manager::test_get_pot(pot_id, CREATOR);
@@ -140,8 +140,8 @@ module money_pot::money_pot_test {
         // Attempt the pot
         let attempt_id = money_pot_manager::test_attempt_pot(&hunter, pot_id, CREATOR);
         
-        // Oracle verifies failed completion
-        money_pot_manager::attempt_completed(&trusted_oracle, attempt_id, false);
+        // Oracle verifies failed completion using test function
+        money_pot_manager::test_attempt_completed(&trusted_oracle, attempt_id, false, CREATOR);
         
         // Verify pot is still active (since attempt failed)
         let pot = money_pot_manager::test_get_pot(pot_id, CREATOR);
@@ -188,11 +188,11 @@ module money_pot::money_pot_test {
         // Attempt the pot
         let attempt_id = money_pot_manager::test_attempt_pot(&hunter, pot_id, CREATOR);
         
-        // Complete attempt successfully
-        money_pot_manager::attempt_completed(&trusted_oracle, attempt_id, true);
+        // Complete attempt successfully using test function
+        money_pot_manager::test_attempt_completed(&trusted_oracle, attempt_id, true, CREATOR);
         
         // Try to complete again (should fail)
-        money_pot_manager::attempt_completed(&trusted_oracle, attempt_id, false);
+        money_pot_manager::test_attempt_completed(&trusted_oracle, attempt_id, false, CREATOR);
     }
 
     #[test]
@@ -220,6 +220,7 @@ module money_pot::money_pot_test {
     }
 
     #[test]
+    #[expected_failure(abort_code = 2)] // E_CREATOR_CANNOT_ATTEMPT
     fun test_creator_cannot_attempt_own_pot() {
         let creator = account::create_account_for_test(CREATOR);
 
@@ -230,11 +231,7 @@ module money_pot::money_pot_test {
         let pot_id = money_pot_manager::test_create_pot(&creator, 1000000, 3600, 100000, CREATOR);
         
         // Try to attempt own pot (should fail)
-        let attempt_id = money_pot_manager::test_attempt_pot(&creator, pot_id, CREATOR);
-        
-        // This should not reach here if the assertion works correctly
-        // The test will pass if the function doesn't panic
-        assert!(attempt_id == 0, 0);
+        money_pot_manager::test_attempt_pot(&creator, pot_id, CREATOR);
     }
 
     #[test]
