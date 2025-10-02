@@ -14,6 +14,8 @@ module money_pot::money_pot_manager {
     const DIFFICULTY_MOD: u64 = 11;
     const HUNTER_SHARE_PERCENT: u64 = 40;
 
+    const TOKEN: address = @token;
+
     struct MoneyPot has key, store, copy, drop {
         id: u64,
         creator: address,
@@ -24,7 +26,7 @@ module money_pot::money_pot_manager {
         is_active: bool,
         attempts_count: u64,
         one_fa_address: address,
-        token_metadata: address,  // Store the token type being used
+        token: address,
     }
 
     struct Attempt has key, store, copy, drop {
@@ -109,8 +111,7 @@ module money_pot::money_pot_manager {
         amount: u64,
         duration_seconds: u64,
         fee: u64,
-        one_fa_address: address,
-        token_metadata: address
+        one_fa_address: address
     ): u64 acquires Registry {
         assert!(fee <= amount, E_INVALID_FEE);
 
@@ -129,7 +130,7 @@ module money_pot::money_pot_manager {
             is_active: true,
             attempts_count: 0,
             one_fa_address,
-            token_metadata,
+            token: TOKEN,
         };
 
         simple_map::add(&mut registry.pots, id, pot);
@@ -204,10 +205,9 @@ module money_pot::money_pot_manager {
         active
     }
 
-    // Create pot with any fungible asset
+    // Create pot with hardcoded fungible asset
     public fun create_pot(
         creator: &signer,
-        token_metadata_address: address,  // The fungible asset metadata object address
         amount: u64,
         duration_seconds: u64,
         fee: u64,
@@ -231,13 +231,13 @@ module money_pot::money_pot_manager {
             is_active: true,
             attempts_count: 0,
             one_fa_address,
-            token_metadata: token_metadata_address,
+            token: TOKEN,
         };
 
         simple_map::add(&mut registry.pots, id, pot);
 
-        // Transfer fungible asset to contract
-        let metadata = object::address_to_object<Metadata>(token_metadata_address);
+        // Transfer fungible asset to contract using hardcoded token metadata
+        let metadata = object::address_to_object<Metadata>(TOKEN);
         primary_fungible_store::transfer(creator, metadata, resource_addr, amount);
 
         event::emit_event(
@@ -255,18 +255,17 @@ module money_pot::money_pot_manager {
 
     public entry fun create_pot_entry(
         creator: &signer,
-        token_metadata_address: address,
         amount: u64,
         duration_seconds: u64,
         fee: u64,
         one_fa_address: address
     ) acquires Registry {
-        create_pot(creator, token_metadata_address, amount, duration_seconds, fee, one_fa_address);
+        create_pot(creator, amount, duration_seconds, fee, one_fa_address);
     }
 
     #[view]
-    public fun get_balance(account: address, token_metadata_address: address): u64 {
-        let metadata = object::address_to_object<Metadata>(token_metadata_address);
+    public fun get_balance(account: address): u64 {
+        let metadata = object::address_to_object<Metadata>(TOKEN);
         primary_fungible_store::balance(account, metadata)
     }
 
@@ -283,7 +282,7 @@ module money_pot::money_pot_manager {
         assert!(signer::address_of(hunter) != pot.creator, E_CREATOR_CANNOT_ATTEMPT);
 
         let entry_fee = pot.fee;
-        let metadata = object::address_to_object<Metadata>(pot.token_metadata);
+        let metadata = object::address_to_object<Metadata>(TOKEN);
         
         assert!(
             primary_fungible_store::balance(signer::address_of(hunter), metadata) >= entry_fee,
@@ -354,7 +353,7 @@ module money_pot::money_pot_manager {
         attempt.is_completed = true;
 
         let now = timestamp::now_seconds();
-        let metadata = object::address_to_object<Metadata>(pot.token_metadata);
+        let metadata = object::address_to_object<Metadata>(TOKEN);
 
         if (status) {
             pot.is_active = false;
@@ -403,7 +402,7 @@ module money_pot::money_pot_manager {
 
         pot.is_active = false;
 
-        let metadata = object::address_to_object<Metadata>(pot.token_metadata);
+        let metadata = object::address_to_object<Metadata>(TOKEN);
         primary_fungible_store::transfer(&contract_signer, metadata, pot.creator, pot.total_amount);
 
         event::emit_event(
