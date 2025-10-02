@@ -11,7 +11,7 @@ module money_pot::money_pot_manager {
     use std::vector;
     use std::option;
 
-    const DIFFICULTY_MOD: u64 = 5; //TODO: should be configurable on a pot basis
+    const DIFFICULTY_MOD: u64 = 3; //TODO: should be configurable on a pot basis
     const HUNTER_SHARE_PERCENT: u64 = 40;
 
     const TOKEN: address = @token;
