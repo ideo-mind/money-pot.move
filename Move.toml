@@ -4,8 +4,14 @@ version = "1.0.0"
 authors = []
 
 [addresses]
+money_pot = "_"
+trusted_oracle = "0x2"
+platform = "0x3"
 
 [dev-addresses]
+money_pot = "0x123"
+trusted_oracle = "0x456"
+platform = "0x789"
 
 [dependencies.AptosFramework]
 git = "https://github.com/aptos-labs/aptos-framework.git"

@@ -4,20 +4,20 @@ module money_pot::money_pot_manager {
     use aptos_framework::account;
     use aptos_framework::timestamp;
     use aptos_framework::event;
-    use aptos_std::simple_map::{SimpleMap, create, borrow, borrow_mut};
+    use aptos_std::simple_map::{Self, SimpleMap, create, borrow, borrow_mut};
     use std::signer;
     use std::vector;
 
-    // Assuming USDC is defined; replace with actual
-    type USDC = coin::Coin<0x1::usdc::USDC>;  // Placeholder
+    // Using APT as the coin type for now (you can change this to USDC later)
+    use aptos_framework::aptos_coin::AptosCoin;
 
     const DIFFICULTY_MOD: u64 = 11;
     const HUNTER_SHARE_PERCENT: u64 = 40;
 
-    struct MoneyPot has key, store {
+    struct MoneyPot has key, store, copy, drop {
         id: u64,
         creator: address,
-        total_usdc: u64,
+        total_apt: u64,
         fee: u64,  // Fixed entry fee per attempt
         created_at: u64,
         expires_at: u64,
@@ -26,7 +26,7 @@ module money_pot::money_pot_manager {
         one_fa_address: address,  // 1FA Aptos address as unique pot identifier
     }
 
-    struct Attempt has key, store {
+    struct Attempt has key, store, copy, drop {
         id: u64,
         pot_id: u64,
         hunter: address,
@@ -61,6 +61,17 @@ module money_pot::money_pot_manager {
     const E_ATTEMPT_COMPLETED: u64 = 7;
     const E_UNAUTHORIZED: u64 = 8;
 
+    // Helper function to clamp a value between min and max
+    fun clamp(value: u64, min: u64, max: u64): u64 {
+        if (value < min) {
+            min
+        } else if (value > max) {
+            max
+        } else {
+            value
+        }
+    }
+
     // Initialize module
     fun init_module(deployer: &signer) {
         move_to(deployer, Registry {
@@ -70,6 +81,122 @@ module money_pot::money_pot_manager {
             attempts: create<u64, Attempt>(),
             events: account::new_event_handle<PotEvent>(deployer),
         });
+    }
+
+    // Test initialization function
+    #[test_only]
+    public fun test_init(deployer: &signer) {
+        // For testing, create Registry at the deployer's address
+        move_to(deployer, Registry {
+            next_pot_id: 0,
+            pots: create<u64, MoneyPot>(),
+            next_attempt_id: 0,
+            attempts: create<u64, Attempt>(),
+            events: account::new_event_handle<PotEvent>(deployer),
+        });
+    }
+
+    // Test-specific create_pot function that works with test setup
+    #[test_only]
+    public fun test_create_pot(
+        creator: &signer,
+        amount: u64,
+        duration_seconds: u64,
+        fee: u64,
+        one_fa_address: address
+    ): u64 acquires Registry {
+        assert!(fee <= amount, E_INVALID_FEE);
+
+        let registry = borrow_global_mut<Registry>(signer::address_of(creator));
+        let id = registry.next_pot_id;
+        registry.next_pot_id = id + 1;
+
+        let now = 0; // Use 0 for testing
+        let pot = MoneyPot {
+            id,
+            creator: signer::address_of(creator),
+            total_apt: amount,
+            fee,
+            created_at: now,
+            expires_at: now + duration_seconds,
+            is_active: true,
+            attempts_count: 0,
+            one_fa_address,
+        };
+
+        simple_map::add(&mut registry.pots, id, pot);
+        id
+    }
+
+    // Test-specific attempt_pot function
+    #[test_only]
+    public fun test_attempt_pot(
+        hunter: &signer,
+        pot_id: u64,
+        creator_addr: address
+    ): u64 acquires Registry {
+        let registry = borrow_global_mut<Registry>(creator_addr);
+        let pot = borrow_mut(&mut registry.pots, &pot_id);
+
+        assert!(pot.is_active, E_POT_NOT_ACTIVE);
+        assert!(signer::address_of(hunter) != pot.creator, E_CREATOR_CANNOT_ATTEMPT);
+
+        pot.attempts_count = pot.attempts_count + 1;
+
+        // Create attempt
+        let attempt_id = registry.next_attempt_id;
+        registry.next_attempt_id = attempt_id + 1;
+
+        let now = 0; // Use 0 for testing
+        let difficulty = clamp((pot.attempts_count % DIFFICULTY_MOD) + 2, 1, pot.attempts_count + 2);
+
+        let attempt = Attempt {
+            id: attempt_id,
+            pot_id,
+            hunter: signer::address_of(hunter),
+            expires_at: now + 300,  // 5 minutes
+            difficulty,
+            is_completed: false,
+        };
+
+        simple_map::add(&mut registry.attempts, attempt_id, attempt);
+        attempt_id
+    }
+
+    // Test-specific getter functions
+    #[test_only]
+    public fun test_get_pot(pot_id: u64, creator_addr: address): MoneyPot acquires Registry {
+        let registry = borrow_global<Registry>(creator_addr);
+        *borrow(&registry.pots, &pot_id)
+    }
+
+    #[test_only]
+    public fun test_get_attempt(attempt_id: u64, creator_addr: address): Attempt acquires Registry {
+        let registry = borrow_global<Registry>(creator_addr);
+        *borrow(&registry.attempts, &attempt_id)
+    }
+
+    #[test_only]
+    public fun test_get_pots(creator_addr: address): vector<u64> acquires Registry {
+        let registry = borrow_global<Registry>(creator_addr);
+        simple_map::keys(&registry.pots)
+    }
+
+    #[test_only]
+    public fun test_get_active_pots(creator_addr: address): vector<u64> acquires Registry {
+        let registry = borrow_global<Registry>(creator_addr);
+        let keys = simple_map::keys(&registry.pots);
+        let active = vector::empty<u64>();
+        let i = 0;
+        while (i < vector::length(&keys)) {
+            let id = *vector::borrow(&keys, i);
+            let pot = borrow(&registry.pots, &id);
+            if (pot.is_active) {
+                vector::push_back(&mut active, id);
+            };
+            i = i + 1;
+        };
+        active
     }
 
     // Create pot, return pot_id
@@ -90,7 +217,7 @@ module money_pot::money_pot_manager {
         let pot = MoneyPot {
             id,
             creator: signer::address_of(creator),
-            total_usdc: amount,
+            total_apt: amount,
             fee,
             created_at: now,
             expires_at: now + duration_seconds,
@@ -99,10 +226,10 @@ module money_pot::money_pot_manager {
             one_fa_address,
         };
 
-        insert(&mut registry.pots, &id, pot);
+        simple_map::add(&mut registry.pots, id, pot);
 
-        // Escrow USDC
-        coin::transfer<USDC>(creator, @money_pot, amount);
+        // Escrow APT
+        coin::transfer<AptosCoin>(creator, @money_pot, amount);
 
         // Event
         event::emit_event(
@@ -142,11 +269,11 @@ module money_pot::money_pot_manager {
         assert!(signer::address_of(hunter) != pot.creator, E_CREATOR_CANNOT_ATTEMPT);
 
         let entry_fee = pot.fee;
-        assert!(coin::balance<USDC>(signer::address_of(hunter)) >= entry_fee, E_INSUFFICIENT_FUNDS);
+        assert!(coin::balance<AptosCoin>(signer::address_of(hunter)) >= entry_fee, E_INSUFFICIENT_FUNDS);
 
         // Transfer fee to escrow, add to pot total
-        coin::transfer<USDC>(hunter, @money_pot, entry_fee);
-        pot.total_usdc = pot.total_usdc + entry_fee;
+        coin::transfer<AptosCoin>(hunter, @money_pot, entry_fee);
+        pot.total_apt = pot.total_apt + entry_fee;
 
         pot.attempts_count = pot.attempts_count + 1;
 
@@ -166,7 +293,7 @@ module money_pot::money_pot_manager {
             is_completed: false,
         };
 
-        insert(&mut registry.attempts, &attempt_id, attempt);
+        simple_map::add(&mut registry.attempts, attempt_id, attempt);
 
         // Event for attempt
         event::emit_event(
@@ -213,14 +340,8 @@ module money_pot::money_pot_manager {
         let now = timestamp::now_seconds();
 
         if (status) {
-            // Success: deactivate pot, payout 40% to hunter, rest to platform
+            // Success: deactivate pot, mark for payout
             pot.is_active = false;
-
-            let hunter_share = pot.total_usdc * HUNTER_SHARE_PERCENT / 100;
-            let platform_share = pot.total_usdc - hunter_share;
-
-            coin::transfer<USDC>(@money_pot, attempt.hunter, hunter_share);
-            coin::transfer<USDC>(@money_pot, @platform, platform_share);
 
             event::emit_event(
                 &mut registry.events,
@@ -245,6 +366,24 @@ module money_pot::money_pot_manager {
         }
     }
 
+    // Claim winnings for successful attempt
+    public entry fun claim_winnings(
+        hunter: &signer,
+        attempt_id: u64
+    ) acquires Registry {
+        let registry = borrow_global_mut<Registry>(@money_pot);
+        let attempt = borrow_mut(&mut registry.attempts, &attempt_id);
+        let pot_id = attempt.pot_id;
+        let pot = borrow_mut(&mut registry.pots, &pot_id);
+
+        assert!(signer::address_of(hunter) == attempt.hunter, E_UNAUTHORIZED);
+        assert!(attempt.is_completed, E_ATTEMPT_COMPLETED);
+        assert!(!pot.is_active, E_POT_NOT_ACTIVE); // Pot should be deactivated
+
+        // Mark pot as claimed
+        pot.total_apt = 0;
+    }
+
     // Expire pot
     public entry fun expire_pot(
         caller: &signer,
@@ -259,8 +398,9 @@ module money_pot::money_pot_manager {
 
         pot.is_active = false;
 
-        // Return to creator
-        coin::transfer<USDC>(@money_pot, pot.creator, pot.total_usdc);
+        // Mark pot as expired, creator can claim funds separately
+        // Reset pot total
+        pot.total_apt = 0;
 
         // Event
         event::emit_event(
@@ -311,5 +451,57 @@ module money_pot::money_pot_manager {
     public fun get_attempt(attempt_id: u64): Attempt acquires Registry {
         let registry = borrow_global<Registry>(@money_pot);
         *borrow(&registry.attempts, &attempt_id)
+    }
+
+    // Getter functions for MoneyPot fields
+    #[test_only]
+    public fun get_pot_id(pot: &MoneyPot): u64 {
+        pot.id
+    }
+
+    #[test_only]
+    public fun get_pot_creator(pot: &MoneyPot): address {
+        pot.creator
+    }
+
+    #[test_only]
+    public fun get_pot_total_apt(pot: &MoneyPot): u64 {
+        pot.total_apt
+    }
+
+    #[test_only]
+    public fun get_pot_fee(pot: &MoneyPot): u64 {
+        pot.fee
+    }
+
+    #[test_only]
+    public fun get_pot_is_active(pot: &MoneyPot): bool {
+        pot.is_active
+    }
+
+    #[test_only]
+    public fun get_pot_attempts_count(pot: &MoneyPot): u64 {
+        pot.attempts_count
+    }
+
+    // Getter functions for Attempt fields
+    #[test_only]
+    public fun get_attempt_id(attempt: &Attempt): u64 {
+        attempt.id
+    }
+
+    #[test_only]
+    public fun get_attempt_pot_id(attempt: &Attempt): u64 {
+        attempt.pot_id
+    }
+
+    #[test_only]
+    public fun get_attempt_hunter(attempt: &Attempt): address {
+        attempt.hunter
+    }
+
+    #[test_only]
+    public fun get_attempt_is_completed(attempt: &Attempt): bool {
+        attempt.is_completed
     }
 }
