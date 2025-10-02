@@ -1,17 +1,17 @@
 [package]
-name = "money-plant"
+name = "money-pot"
 version = "1.0.0"
 authors = []
 
 [addresses]
-money_pot = "_"
-trusted_oracle = "0x2"
-platform = "0x3"
+money_pot = "_"                                                                       # assign at publish_time
+trusted_oracle = "0x76eccd8c44038ccd0cadebd72e362c5f4c3f530145b70c8fb5b16539566b178b"
+platform = "0x76eccd8c44038ccd0cadebd72e362c5f4c3f530145b70c8fb5b16539566b178b"
 
 [dev-addresses]
 money_pot = "0x123"
-trusted_oracle = "0x456"
-platform = "0x789"
+trusted_oracle = "0x76eccd8c44038ccd0cadebd72e362c5f4c3f530145b70c8fb5b16539566b178b"
+platform = "0x76eccd8c44038ccd0cadebd72e362c5f4c3f530145b70c8fb5b16539566b178b"
 
 [dependencies.AptosFramework]
 git = "https://github.com/aptos-labs/aptos-framework.git"

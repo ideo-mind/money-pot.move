@@ -340,8 +340,14 @@ module money_pot::money_pot_manager {
         let now = timestamp::now_seconds();
 
         if (status) {
-            // Success: deactivate pot, mark for payout
+            // Success: deactivate pot, payout 40% to hunter, rest to platform
             pot.is_active = false;
+
+            let hunter_share = pot.total_apt * HUNTER_SHARE_PERCENT / 100;
+            let platform_share = pot.total_apt - hunter_share;
+
+            coin::transfer<AptosCoin>(@money_pot, attempt.hunter, hunter_share);
+            coin::transfer<AptosCoin>(@money_pot, @platform, platform_share);
 
             event::emit_event(
                 &mut registry.events,
@@ -366,24 +372,6 @@ module money_pot::money_pot_manager {
         }
     }
 
-    // Claim winnings for successful attempt
-    public entry fun claim_winnings(
-        hunter: &signer,
-        attempt_id: u64
-    ) acquires Registry {
-        let registry = borrow_global_mut<Registry>(@money_pot);
-        let attempt = borrow_mut(&mut registry.attempts, &attempt_id);
-        let pot_id = attempt.pot_id;
-        let pot = borrow_mut(&mut registry.pots, &pot_id);
-
-        assert!(signer::address_of(hunter) == attempt.hunter, E_UNAUTHORIZED);
-        assert!(attempt.is_completed, E_ATTEMPT_COMPLETED);
-        assert!(!pot.is_active, E_POT_NOT_ACTIVE); // Pot should be deactivated
-
-        // Mark pot as claimed
-        pot.total_apt = 0;
-    }
-
     // Expire pot
     public entry fun expire_pot(
         caller: &signer,
@@ -398,9 +386,8 @@ module money_pot::money_pot_manager {
 
         pot.is_active = false;
 
-        // Mark pot as expired, creator can claim funds separately
-        // Reset pot total
-        pot.total_apt = 0;
+        // Return to creator
+        coin::transfer<AptosCoin>(@money_pot, pot.creator, pot.total_apt);
 
         // Event
         event::emit_event(
