@@ -173,7 +173,7 @@ module money_pot::money_pot_test {
     }
 
     #[test]
-    #[expected_failure(abort_code = 7)] // E_ATTEMPT_COMPLETED
+    #[expected_failure(abort_code = 1)] // E_POT_NOT_ACTIVE
     fun test_double_completion() {
         let creator = account::create_account_for_test(CREATOR);
         let hunter = account::create_account_for_test(HUNTER);
@@ -191,7 +191,7 @@ module money_pot::money_pot_test {
         // Complete attempt successfully using test function
         money_pot_manager::test_attempt_completed(&trusted_oracle, attempt_id, true, CREATOR);
         
-        // Try to complete again (should fail)
+        // Try to complete again (should fail because pot is now inactive)
         money_pot_manager::test_attempt_completed(&trusted_oracle, attempt_id, false, CREATOR);
     }
 
@@ -257,5 +257,28 @@ module money_pot::money_pot_test {
         // Verify pot attempt count increased
         let pot = money_pot_manager::test_get_pot(pot_id, CREATOR);
         assert!(money_pot_manager::get_pot_attempts_count(&pot) == 2, 2);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = 7)] // E_ATTEMPT_COMPLETED
+    fun test_attempt_already_completed() {
+        let creator = account::create_account_for_test(CREATOR);
+        let hunter = account::create_account_for_test(HUNTER);
+        let trusted_oracle = account::create_account_for_test(TRUSTED_ORACLE);
+
+        // Initialize the module
+        money_pot_manager::test_init(&creator);
+
+        // Create a pot
+        let pot_id = money_pot_manager::test_create_pot(&creator, 1000000, 3600, 100000, HUNTER);
+        
+        // Attempt the pot
+        let attempt_id = money_pot_manager::test_attempt_pot(&hunter, pot_id, CREATOR);
+        
+        // Complete attempt with failure (pot stays active)
+        money_pot_manager::test_attempt_completed(&trusted_oracle, attempt_id, false, CREATOR);
+        
+        // Try to complete the same attempt again (should fail with E_ATTEMPT_COMPLETED)
+        money_pot_manager::test_attempt_completed(&trusted_oracle, attempt_id, true, CREATOR);
     }
 }
