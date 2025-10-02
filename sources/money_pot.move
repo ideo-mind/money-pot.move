@@ -11,7 +11,7 @@ module money_pot::money_pot_manager {
     use std::vector;
     use std::option;
 
-    const DIFFICULTY_MOD: u64 = 11;
+    const DIFFICULTY_MOD: u64 = 5; //TODO: should be configurable on a pot basis
     const HUNTER_SHARE_PERCENT: u64 = 40;
 
     const TOKEN: address = @token;
@@ -65,16 +65,6 @@ module money_pot::money_pot_manager {
     const E_ATTEMPT_EXPIRED: u64 = 6;
     const E_ATTEMPT_COMPLETED: u64 = 7;
     const E_UNAUTHORIZED: u64 = 8;
-
-    fun clamp(value: u64, min: u64, max: u64): u64 {
-        if (value < min) {
-            min
-        } else if (value > max) {
-            max
-        } else {
-            value
-        }
-    }
 
     fun init_module(deployer: &signer) {
         let (resource_signer, signer_cap) = account::create_resource_account(deployer, b"money_pot");
@@ -155,7 +145,7 @@ module money_pot::money_pot_manager {
         registry.next_attempt_id = attempt_id + 1;
 
         let now = 0;
-        let difficulty = clamp((pot.attempts_count % DIFFICULTY_MOD) + 2, 1, pot.attempts_count + 2);
+        let difficulty = (pot.attempts_count % DIFFICULTY_MOD) + 2;
 
         let attempt = Attempt {
             id: attempt_id,
@@ -348,7 +338,7 @@ module money_pot::money_pot_manager {
         registry.next_attempt_id = attempt_id + 1;
 
         let now = timestamp::now_seconds();
-        let difficulty = clamp((pot.attempts_count % DIFFICULTY_MOD) + 2, 1, pot.attempts_count + 2);
+        let difficulty = (pot.attempts_count % DIFFICULTY_MOD) + 2;
 
         let attempt = Attempt {
             id: attempt_id,
