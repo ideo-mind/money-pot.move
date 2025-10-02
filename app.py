@@ -32,10 +32,10 @@ MODULE_QN = f"{MODULE_ADDR}::money_pot_manager"
 
 
 def load_main_account_from_env() -> Account:
-    private_key_hex = os.getenv("APTOS_PRIVATE_KEY")
-    if not private_key_hex:
+    private_key = os.getenv("APTOS_PRIVATE_KEY")
+    if not private_key:
         raise RuntimeError("APTOS_PRIVATE_KEY is not set")
-    return Account.load_key(bytes.fromhex(private_key_hex))
+    return Account.load_key(private_key)
 
 
 async def submit_entry(
