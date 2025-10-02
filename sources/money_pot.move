@@ -491,6 +491,11 @@ module money_pot::money_pot_manager {
         *borrow(&registry.attempts, &attempt_id)
     }
 
+    #[view]
+    public fun get_verifier_oracle() : address {
+        @trusted_oracle
+    }
+
     #[test_only]
     public fun get_pot_id(pot: &MoneyPot): u64 { pot.id }
     #[test_only]
