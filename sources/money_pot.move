@@ -8,8 +8,8 @@ module money_pot::money_pot_manager {
     use std::signer;
     use std::vector;
 
-    // Using APT as the coin type for now (you can change this to USDC later)
-    use aptos_framework::aptos_coin::AptosCoin;
+    // Import USDC coin type from the named address in Move.toml
+    use usdc::coin::T as USDC;
 
     const DIFFICULTY_MOD: u64 = 11;
     const HUNTER_SHARE_PERCENT: u64 = 40;
@@ -17,7 +17,7 @@ module money_pot::money_pot_manager {
     struct MoneyPot has key, store, copy, drop {
         id: u64,
         creator: address,
-        total_apt: u64,
+        total_usdc: u64,
         fee: u64,  // Fixed entry fee per attempt
         created_at: u64,
         expires_at: u64,
@@ -86,7 +86,6 @@ module money_pot::money_pot_manager {
     // Test initialization function
     #[test_only]
     public fun test_init(deployer: &signer) {
-        // For testing, create Registry at the deployer's address
         move_to(deployer, Registry {
             next_pot_id: 0,
             pots: create<u64, MoneyPot>(),
@@ -115,7 +114,7 @@ module money_pot::money_pot_manager {
         let pot = MoneyPot {
             id,
             creator: signer::address_of(creator),
-            total_apt: amount,
+            total_usdc: amount,
             fee,
             created_at: now,
             expires_at: now + duration_seconds,
@@ -217,7 +216,7 @@ module money_pot::money_pot_manager {
         let pot = MoneyPot {
             id,
             creator: signer::address_of(creator),
-            total_apt: amount,
+            total_usdc: amount,
             fee,
             created_at: now,
             expires_at: now + duration_seconds,
@@ -228,8 +227,8 @@ module money_pot::money_pot_manager {
 
         simple_map::add(&mut registry.pots, id, pot);
 
-        // Escrow APT
-        coin::transfer<AptosCoin>(creator, @money_pot, amount);
+        // Escrow USDC using the named address type
+        coin::transfer<USDC>(creator, @money_pot, amount);
 
         // Event
         event::emit_event(
@@ -269,11 +268,11 @@ module money_pot::money_pot_manager {
         assert!(signer::address_of(hunter) != pot.creator, E_CREATOR_CANNOT_ATTEMPT);
 
         let entry_fee = pot.fee;
-        assert!(coin::balance<AptosCoin>(signer::address_of(hunter)) >= entry_fee, E_INSUFFICIENT_FUNDS);
+        assert!(coin::balance<USDC>(signer::address_of(hunter)) >= entry_fee, E_INSUFFICIENT_FUNDS);
 
         // Transfer fee to escrow, add to pot total
-        coin::transfer<AptosCoin>(hunter, @money_pot, entry_fee);
-        pot.total_apt = pot.total_apt + entry_fee;
+        coin::transfer<USDC>(hunter, @money_pot, entry_fee);
+        pot.total_usdc = pot.total_usdc + entry_fee;
 
         pot.attempts_count = pot.attempts_count + 1;
 
@@ -343,11 +342,11 @@ module money_pot::money_pot_manager {
             // Success: deactivate pot, payout 40% to hunter, rest to platform
             pot.is_active = false;
 
-            let hunter_share = pot.total_apt * HUNTER_SHARE_PERCENT / 100;
-            let platform_share = pot.total_apt - hunter_share;
+            let hunter_share = pot.total_usdc * HUNTER_SHARE_PERCENT / 100;
+            let platform_share = pot.total_usdc - hunter_share;
 
-            coin::transfer<AptosCoin>(@money_pot, attempt.hunter, hunter_share);
-            coin::transfer<AptosCoin>(@money_pot, @platform, platform_share);
+            coin::transfer<USDC>(@money_pot, attempt.hunter, hunter_share);
+            coin::transfer<USDC>(@money_pot, @platform, platform_share);
 
             event::emit_event(
                 &mut registry.events,
@@ -387,7 +386,7 @@ module money_pot::money_pot_manager {
         pot.is_active = false;
 
         // Return to creator
-        coin::transfer<AptosCoin>(@money_pot, pot.creator, pot.total_apt);
+        coin::transfer<USDC>(@money_pot, pot.creator, pot.total_usdc);
 
         // Event
         event::emit_event(
@@ -452,8 +451,8 @@ module money_pot::money_pot_manager {
     }
 
     #[test_only]
-    public fun get_pot_total_apt(pot: &MoneyPot): u64 {
-        pot.total_apt
+    public fun get_pot_total_usdc(pot: &MoneyPot): u64 {
+        pot.total_usdc
     }
 
     #[test_only]

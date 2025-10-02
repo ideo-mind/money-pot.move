@@ -11,10 +11,7 @@ trusted_oracle = "0xb2530c42d161bab8d925e8227ee832bc79ac2edde9218f3b10f4d2385594
 platform = "0x76eccd8c44038ccd0cadebd72e362c5f4c3f530145b70c8fb5b16539566b178b"
 
 [dev-addresses]
-usdc = "0x69091fbab5f7d635ee7ac5098cf0c1efbe31d68fec0f2cd565e8d168daf52832"  # Testnet USDC
 money_pot = "0x111111"
-trusted_oracle = "0xb2530c42d161bab8d925e8227ee832bc79ac2edde9218f3b10f4d2385594a230"
-platform = "0x76eccd8c44038ccd0cadebd72e362c5f4c3f530145b70c8fb5b16539566b178b"
 
 [dependencies]
 AptosFramework = { git = "https://github.com/aptos-labs/aptos-framework.git", subdir = "aptos-framework/", rev = "mainnet" }
