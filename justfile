@@ -126,3 +126,7 @@ help:
     @echo "Environment configuration:"
     @echo "  export RPC_URL=https://fullnode.testnet.aptoslabs.com"
     @echo "  export APTOS_PROFILE=my-profile"
+
+
+uv *ARGS: 
+  uv "{{ARGS}}"

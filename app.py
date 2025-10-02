@@ -2,6 +2,10 @@ import os
 import asyncio
 from typing import Optional
 
+from dotenv import load_dotenv
+load_dotenv()
+
+
 from aptos_sdk.account import Account
 from aptos_sdk.async_client import RestClient as AsyncRestClient
 from aptos_sdk.authenticator import Authenticator
