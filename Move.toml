@@ -1,17 +1,21 @@
 [package]
 name = "money-pot"
 version = "1.0.0"
-authors = []
+authors = ["Hiro <laciferin@gmail.com>"]
 
 [addresses]
 money_pot = "_"                                                                       # assign at publish_time
 trusted_oracle = "0x76eccd8c44038ccd0cadebd72e362c5f4c3f530145b70c8fb5b16539566b178b"
-platform = "0x76eccd8c44038ccd0cadebd72e362c5f4c3f530145b70c8fb5b16539566b178b"
+platform = "0xfb67b4162d6e92d8fef5791f3293fbd498da033c43947bc2b90cf4b75b1aa721"
+usdc = "0x69091fbab5f7d635ee7ac5098cf0c1efbe31d68fec0f2cd565e8d168daf52832"
+
 
 [dev-addresses]
-money_pot = "_"
-trusted_oracle = "0x76eccd8c44038ccd0cadebd72e362c5f4c3f530145b70c8fb5b16539566b178b"
-platform = "0x76eccd8c44038ccd0cadebd72e362c5f4c3f530145b70c8fb5b16539566b178b"
+money_pot = "0x1111"
+trusted_oracle = "0xa2adb2f1df2c070aa8da5bf6c8aacd3bd63593675082e713f5d9c08a54e6f763"
+platform = "0xfb67b4162d6e92d8fef5791f3293fbd498da033c43947bc2b90cf4b75b1aa721"
+usdc = "0x69091fbab5f7d635ee7ac5098cf0c1efbe31d68fec0f2cd565e8d168daf52832"
+
 
 [dependencies.AptosFramework]
 git = "https://github.com/aptos-labs/aptos-framework.git"

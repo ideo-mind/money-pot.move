@@ -6,8 +6,10 @@ set dotenv-filename := ".env"
 set export
 
 
+import? "local.justfile"
+
 RPC := env("RPC_URL","https://fullnode.devnet.aptoslabs.com")
-PROFILE := env("APTOS_PROFILE","money-dev")
+PROFILE := env("APTOS_PROFILE","admin")
 FAUCET_URL := env("FAUCET_URL","https://faucet.devnet.aptoslabs.com")
 
 # Default network (change to testnet/mainnet as needed)
@@ -114,7 +116,7 @@ help:
     @echo ""
     @echo "Configuration (via environment variables or .env file):"
     @echo "  RPC_URL            - Aptos RPC endpoint (default: https://fullnode.devnet.aptoslabs.com)"
-    @echo "  APTOS_PROFILE      - Aptos CLI profile name (default: money-dev)"
+    @echo "  APTOS_PROFILE      - Aptos CLI profile name (default: admin)"
     @echo ""
     @echo "Example usage:"
     @echo "  just deploy-full"
