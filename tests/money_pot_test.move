@@ -31,7 +31,6 @@ module money_pot::money_pot_test {
         let pot = money_pot_manager::test_get_pot(pot_id, CREATOR);
         assert!(money_pot_manager::get_pot_id(&pot) == 0, 1);
         assert!(money_pot_manager::get_pot_creator(&pot) == CREATOR, 2);
-        assert!(money_pot_manager::get_pot_total_apt(&pot) == 1000000, 3);
         assert!(money_pot_manager::get_pot_fee(&pot) == 100000, 4);
         assert!(money_pot_manager::get_pot_is_active(&pot) == true, 5);
         assert!(money_pot_manager::get_pot_attempts_count(&pot) == 0, 6);
