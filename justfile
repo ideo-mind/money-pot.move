@@ -5,6 +5,11 @@ set windows-shell := ["powershell.exe", "-NoLogo", "-Command"]
 set dotenv-filename := ".env"
 set export
 
+
+RPC := env("RPC_URL","https://fullnode.devnet.aptoslabs.com")
+PROFILE := env("APTOS_PROFILE","money-dev")
+FAUCET_URL := env("FAUCET_URL","https://faucet.devnet.aptoslabs.com")
+
 # Default network (change to testnet/mainnet as needed)
 network := "testnet"
 
@@ -22,55 +27,55 @@ init-account:
 
 # Fund the account with faucet (devnet only)
 fund:
-    aptos account fund-with-faucet --profile default --url https://fullnode.devnet.aptoslabs.com --faucet-url https://faucet.devnet.aptoslabs.com
+    aptos account fund-with-faucet --profile {{PROFILE}} --url {{RPC}} --faucet-url {{FAUCET_URL}}
 
 # Deploy the contract
 deploy:
-    aptos move deploy-object --address-name money_pot --assume-yes
+    aptos move deploy-object --profile {{PROFILE}} --url {{RPC}} --address-name money_pot --assume-yes
 
 # Deploy with specific profile
 deploy-profile profile:
-    aptos move deploy-object --profile {{profile}} --address-name money_pot --assume-yes
+    aptos move deploy-object --profile {{profile}} --url {{RPC}} --address-name money_pot --assume-yes
 
 # Upgrade existing contract
 upgrade object-address:
-    aptos move upgrade-object --address-name money_pot --object-address {{object-address}} --assume-yes
+    aptos move upgrade-object --profile {{PROFILE}} --url {{RPC}} --address-name money_pot --object-address {{object-address}} --assume-yes
 
 # Upgrade with specific profile
 upgrade-profile profile object-address:
-    aptos move upgrade-object --profile {{profile}} --address-name money_pot --object-address {{object-address}} --assume-yes
+    aptos move upgrade-object --profile {{profile}} --url {{RPC}} --address-name money_pot --object-address {{object-address}} --assume-yes
 
 # Get account info
 account-info:
-    aptos account list --profile money-dev
+    aptos account list --profile {{PROFILE}} --url {{RPC}}
 
 # Get account balance
 balance:
-    aptos account list --profile money-dev --query balance
+    aptos account list --profile {{PROFILE}} --url {{RPC}} --query balance
 
 # Create a new pot (example usage)
 create-pot amount duration-seconds fee one-fa-address *ARGS:
-    aptos move run --profile money-dev --url https://fullnode.testnet.aptoslabs.com --function-id {{get-object-address}}::money_pot_manager::create_pot_entry --args u64:{{amount}} u64:{{duration-seconds}} u64:{{fee}} address: {{one-fa-address}} {{ARGS}} 
+    aptos move run --profile {{PROFILE}} --url {{RPC}} --function-id {{get-object-address}}::money_pot_manager::create_pot_entry --args u64:{{amount}} u64:{{duration-seconds}} u64:{{fee}} address:{{one-fa-address}} {{ARGS}} 
 
 # Attempt a pot (example usage)
 attempt-pot pot-id:
-    aptos move run --profile money-dev --url https://fullnode.testnet.aptoslabs.com --function-id {{get-object-address}}::money_pot_manager::attempt_pot_entry --args u64:{{pot-id}}
+    aptos move run --profile {{PROFILE}} --url {{RPC}} --function-id {{get-object-address}}::money_pot_manager::attempt_pot_entry --args u64:{{pot-id}}
 
 # Get all pots
 get-pots:
-    aptos move view --url https://fullnode.testnet.aptoslabs.com --function-id {{get-object-address}}::money_pot_manager::get_pots
+    aptos move view --url {{RPC}} --function-id {{get-object-address}}::money_pot_manager::get_pots
 
 # Get active pots
 get-active-pots:
-    aptos move view --url https://fullnode.testnet.aptoslabs.com --function-id {{get-object-address}}::money_pot_manager::get_active_pots
+    aptos move view --url {{RPC}} --function-id {{get-object-address}}::money_pot_manager::get_active_pots
 
 # Get pot by ID
 get-pot pot-id:
-    aptos move view --url https://fullnode.testnet.aptoslabs.com --function-id {{get-object-address}}::money_pot_manager::get_pot --args u64:{{pot-id}}
+    aptos move view --url {{RPC}} --function-id {{get-object-address}}::money_pot_manager::get_pot --args u64:{{pot-id}}
 
 # Get attempt by ID
 get-attempt attempt-id:
-    aptos move view --url https://fullnode.testnet.aptoslabs.com --function-id {{get-object-address}}::money_pot_manager::get_attempt --args u64:{{attempt-id}}
+    aptos move view --url {{RPC}} --function-id {{get-object-address}}::money_pot_manager::get_attempt --args u64:{{attempt-id}}
 
 # Helper to get the deployed object address
 get-object-address := "0xe8769b0b3019185cd0261396a9d6159898a9c12928b88780176e5b701fb5c141"
@@ -107,7 +112,15 @@ help:
     @echo "  deploy-full        - Complete deployment workflow"
     @echo "  clean              - Clean build artifacts"
     @echo ""
+    @echo "Configuration (via environment variables or .env file):"
+    @echo "  RPC_URL            - Aptos RPC endpoint (default: https://fullnode.devnet.aptoslabs.com)"
+    @echo "  APTOS_PROFILE      - Aptos CLI profile name (default: money-dev)"
+    @echo ""
     @echo "Example usage:"
     @echo "  just deploy-full"
     @echo "  just create-pot 1000000 3600 100000 0x123..."
     @echo "  just attempt-pot 0"
+    @echo ""
+    @echo "Environment configuration:"
+    @echo "  export RPC_URL=https://fullnode.testnet.aptoslabs.com"
+    @echo "  export APTOS_PROFILE=my-profile"
