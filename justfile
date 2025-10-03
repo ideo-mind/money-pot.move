@@ -62,30 +62,28 @@ balance:
 
 # Create a new pot (example usage)
 create-pot amount duration-seconds fee one-fa-address *ARGS:
-    aptos move run --profile {{PROFILE}} --url {{RPC}} --function-id {{get-object-address}}::money_pot_manager::create_pot_entry --args u64:{{amount}} u64:{{duration-seconds}} u64:{{fee}} address:{{one-fa-address}} {{ARGS}} 
+    aptos move run --profile {{PROFILE}} --url {{RPC}} --function-id {{MONEY_POT_ADDRESS}}::money_pot_manager::create_pot_entry --args u64:{{amount}} u64:{{duration-seconds}} u64:{{fee}} address:{{one-fa-address}} {{ARGS}} 
 
 # Attempt a pot (example usage)
 attempt-pot pot-id:
-    aptos move run --profile {{PROFILE}} --url {{RPC}} --function-id {{get-object-address}}::money_pot_manager::attempt_pot_entry --args u64:{{pot-id}}
+    aptos move run --profile {{PROFILE}} --url {{RPC}} --function-id {{MONEY_POT_ADDRESS}}::money_pot_manager::attempt_pot_entry --args u64:{{pot-id}}
 
 # Get all pots
 get-pots:
-    aptos move view --url {{RPC}} --function-id {{get-object-address}}::money_pot_manager::get_pots
+    aptos move view --url {{RPC}} --function-id {{MONEY_POT_ADDRESS}}::money_pot_manager::get_pots
 
 # Get active pots
 get-active-pots:
-    aptos move view --url {{RPC}} --function-id {{get-object-address}}::money_pot_manager::get_active_pots
+    aptos move view --url {{RPC}} --function-id {{MONEY_POT_ADDRESS}}::money_pot_manager::get_active_pots
 
 # Get pot by ID
 get-pot pot-id:
-    aptos move view --url {{RPC}} --function-id {{get-object-address}}::money_pot_manager::get_pot --args u64:{{pot-id}}
+    aptos move view --url {{RPC}} --function-id {{MONEY_POT_ADDRESS}}::money_pot_manager::get_pot --args u64:{{pot-id}}
 
 # Get attempt by ID
 get-attempt attempt-id:
-    aptos move view --url {{RPC}} --function-id {{get-object-address}}::money_pot_manager::get_attempt --args u64:{{attempt-id}}
+    aptos move view --url {{RPC}} --function-id {{MONEY_POT_ADDRESS}}::money_pot_manager::get_attempt --args u64:{{attempt-id}}
 
-# Helper to get the deployed object address
-get-object-address := "0xe8769b0b3019185cd0261396a9d6159898a9c12928b88780176e5b701fb5c141"
 
 # Full deployment workflow
 deploy-full:
