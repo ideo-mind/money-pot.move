@@ -36,20 +36,74 @@ def load_main_account_from_env() -> Account:
     return Account.load_key(private_key)
 
 
+async def create_account(client: AsyncRestClient, creator: Account, new_account: Account) -> str:
+    """Create a new account"""
+    from aptos_sdk.transactions import EntryFunction, TransactionPayload
+    
+    entry = EntryFunction.natural(
+        "0x1::aptos_account",
+        "create_account",
+        [],
+        [
+            TransactionArgument(new_account.account_address, lambda s, addr: addr.serialize(s)),
+        ],
+    )
+    
+    payload = TransactionPayload(entry)
+    return await submit_transaction(client, creator, payload)
+
+
+async def fund_account(client: AsyncRestClient, sender: Account, receiver: AccountAddress, amount: int) -> str:
+    """Fund an account with APT tokens"""
+    from aptos_sdk.transactions import EntryFunction, TransactionPayload
+    
+    entry = EntryFunction.natural(
+        "0x1::aptos_account",
+        "transfer",
+        [],
+        [
+            TransactionArgument(receiver, lambda s, addr: addr.serialize(s)),
+            TransactionArgument(amount, Serializer.u64),
+        ],
+    )
+    
+    payload = TransactionPayload(entry)
+    return await submit_transaction(client, sender, payload)
+
+
+async def fund_fungible_asset(client: AsyncRestClient, sender: Account, receiver: AccountAddress, token_address: str, amount: int) -> str:
+    """Fund an account with fungible assets"""
+    from aptos_sdk.transactions import EntryFunction, TransactionPayload, TypeTag, StructTag
+    from aptos_sdk.account_address import AccountAddress
+    
+    token_addr = AccountAddress.from_str(token_address)
+    
+    # Create the type argument for the fungible asset
+    type_arg = TypeTag(StructTag(
+        AccountAddress.from_str("0x1"),
+        "fungible_asset",
+        "FungibleAsset",
+        [TypeTag(StructTag(token_addr, "", "", []))]
+    ))
+    
+    entry = EntryFunction.natural(
+        "0x1::primary_fungible_store",
+        "transfer",
+        [type_arg],
+        [
+            TransactionArgument(receiver, lambda s, addr: addr.serialize(s)),
+            TransactionArgument(amount, Serializer.u64),
+        ],
+    )
+    
+    payload = TransactionPayload(entry)
+    return await submit_transaction(client, sender, payload)
+
+
 async def submit_transaction(client: AsyncRestClient, account: Account, payload: TransactionPayload) -> str:
     """Submit a transaction and return the hash"""
-    # Create the transaction
-    raw_txn = await client.create_bcs_transaction(account, payload)
-    
-    # Serialize the transaction for signing
-    serializer = Serializer()
-    raw_txn.serialize(serializer)
-    
-    # Sign the serialized transaction
-    signature = account.sign(serializer.output())
-    
-    # Create signed transaction
-    signed_txn = SignedTransaction(raw_txn, signature)
+    # Create and sign the transaction using the SDK method
+    signed_txn = await client.create_bcs_signed_transaction(account, payload)
     
     # Submit and wait
     result = await client.submit_and_wait_for_bcs_transaction(signed_txn)
@@ -58,27 +112,39 @@ async def submit_transaction(client: AsyncRestClient, account: Account, payload:
 
 async def get_transaction_events(client: AsyncRestClient, tx_hash: str) -> list[Dict[str, Any]]:
     """Get events from a transaction"""
-    tx = await client.get_transaction_by_hash(tx_hash)
+    tx = await client.transaction_by_hash(tx_hash)
     return tx.get("events", [])
 
 
 def extract_pot_id_from_events(events: list[Dict[str, Any]]) -> Optional[int]:
     """Extract pot_id from PotEvent with event_type 'created'"""
     for event in events:
-        if event.get("type") == f"{MODULE_QN}::PotEvent":
+        if event.get("type") == f"{MODULE_ADDR}::money_pot_manager::PotEvent":
             data = event.get("data", {})
-            if data.get("event_type") == "created":
-                return int(data.get("id", 0))
+            event_type_hex = data.get("event_type", "")
+            if event_type_hex:
+                try:
+                    event_type = bytes.fromhex(event_type_hex[2:]).decode()  # Remove '0x' prefix
+                    if event_type == "created":
+                        return int(data.get("id", 0))
+                except:
+                    continue
     return None
 
 
 def extract_attempt_id_from_events(events: list[Dict[str, Any]]) -> Optional[int]:
     """Extract attempt_id from PotEvent with event_type 'attempted'"""
     for event in events:
-        if event.get("type") == f"{MODULE_QN}::PotEvent":
+        if event.get("type") == f"{MODULE_ADDR}::money_pot_manager::PotEvent":
             data = event.get("data", {})
-            if data.get("event_type") == "attempted":
-                return int(data.get("id", 0))
+            event_type_hex = data.get("event_type", "")
+            if event_type_hex:
+                try:
+                    event_type = bytes.fromhex(event_type_hex[2:]).decode()  # Remove '0x' prefix
+                    if event_type == "attempted":
+                        return int(data.get("id", 0))
+                except:
+                    continue
     return None
 
 
@@ -104,7 +170,7 @@ async def create_pot(
             TransactionArgument(amount, Serializer.u64),
             TransactionArgument(duration_seconds, Serializer.u64),
             TransactionArgument(fee, Serializer.u64),
-            TransactionArgument(one_fa_address, Serializer.struct),
+            TransactionArgument(one_fa_address, lambda s, addr: addr.serialize(s)),
         ],
     )
     
@@ -168,12 +234,30 @@ async def main() -> None:
 
     # Generate non-persisted 1FA account address
     one_fa_tmp = Account.generate()
-    one_fa_addr = one_fa_tmp.address()
+    one_fa_addr = one_fa_tmp.account_address
 
     # Parameters
-    amount = int(os.getenv("POT_AMOUNT", "1000000"))
+    amount = int(os.getenv("POT_AMOUNT", "10000"))
     duration_seconds = int(os.getenv("POT_DURATION", "3600"))
-    fee = int(os.getenv("POT_FEE", "1000"))
+    fee = int(os.getenv("POT_FEE", "100"))
+
+    print(f"Generated 1FA account: {one_fa_addr}")
+    
+    # Create the 1FA account
+    print("Creating 1FA account...")
+    create_account_tx_hash = await create_account(client, main_acct, one_fa_tmp)
+    print(f"Create account tx: {create_account_tx_hash}")
+    
+    # Fund the 1FA account with some APT for transaction fees
+    print("Funding 1FA account with APT...")
+    fund_tx_hash = await fund_account(client, main_acct, one_fa_addr, 10000000)  # 0.1 APT
+    print(f"Funding tx: {fund_tx_hash}")
+    
+    # Fund the 1FA account with fungible assets for pot attempts
+    # token_address = "0x69091fbab5f7d635ee7ac5098cf0c1efbe31d68fec0f2cd565e8d168daf52832"  # USDC token
+    # print(f"Funding 1FA account with fungible assets...")
+    # fund_fa_tx_hash = await fund_fungible_asset(client, main_acct, one_fa_addr, token_address, 2000000)  # 2 USDC
+    # print(f"Funding FA tx: {fund_fa_tx_hash}")
 
     print(f"Creating pot with amount={amount}, duration={duration_seconds}, fee={fee}, 1FA={one_fa_addr}")
 
@@ -182,13 +266,14 @@ async def main() -> None:
     print(f"Pot creation tx: {create_tx_hash}")
     
     create_events = await get_transaction_events(client, create_tx_hash)
+    print(f"Creation events: {create_events}")
     pot_id = extract_pot_id_from_events(create_events)
     if pot_id is None:
         raise RuntimeError("Could not extract pot_id from creation events")
     print(f"Created pot with ID: {pot_id}")
 
-    # Attempt as hunter using same env account and get attempt_id from events
-    attempt_tx_hash = await attempt_pot(client, main_acct, pot_id)
+    # Attempt as hunter using the generated 1FA account and get attempt_id from events
+    attempt_tx_hash = await attempt_pot(client, one_fa_tmp, pot_id)
     print(f"First attempt tx: {attempt_tx_hash}")
     
     attempt_events = await get_transaction_events(client, attempt_tx_hash)
@@ -204,7 +289,7 @@ async def main() -> None:
 
     # Second attempt again, then mark success
     print(f"Making second attempt on pot {pot_id}...")
-    attempt2_tx_hash = await attempt_pot(client, main_acct, pot_id)
+    attempt2_tx_hash = await attempt_pot(client, one_fa_tmp, pot_id)
     print(f"Second attempt tx: {attempt2_tx_hash}")
     
     attempt2_events = await get_transaction_events(client, attempt2_tx_hash)

@@ -319,7 +319,7 @@ module money_pot::money_pot_manager {
 
         assert!(pot.is_active, E_POT_NOT_ACTIVE);
         assert!(timestamp::now_seconds() < pot.expires_at, E_POT_EXPIRED);
-        assert!(signer::address_of(hunter) != pot.creator, E_CREATOR_CANNOT_ATTEMPT);
+        // assert!(signer::address_of(hunter) != pot.creator, E_CREATOR_CANNOT_ATTEMPT); //FIXME: simplify
 
         let entry_fee = pot.fee;
         let metadata = object::address_to_object<Metadata>(TOKEN);
