@@ -13,6 +13,7 @@ module money_pot::money_pot_manager {
 
     const DIFFICULTY_MOD: u64 = 3; //TODO: should be configurable on a pot basis
     const HUNTER_SHARE_PERCENT: u64 = 40;
+    const CREATOR_ENTRY_FEE_SHARE_PERCENT: u64 = 50;
 
     const TOKEN: address = @token;
 
@@ -329,9 +330,16 @@ module money_pot::money_pot_manager {
             E_INSUFFICIENT_FUNDS
         );
 
-        // Transfer fee to contract
-        primary_fungible_store::transfer(hunter, metadata, resource_addr, entry_fee);
-        pot.total_amount = pot.total_amount + entry_fee;
+        // Calculate creator share and platform share of entry fee
+        let creator_share = entry_fee * CREATOR_ENTRY_FEE_SHARE_PERCENT / 100;
+        let platform_share = entry_fee - creator_share;
+
+        // Transfer creator share to pot creator
+        primary_fungible_store::transfer(hunter, metadata, pot.creator, creator_share);
+        
+        // Transfer platform share to contract
+        primary_fungible_store::transfer(hunter, metadata, resource_addr, platform_share);
+        pot.total_amount = pot.total_amount + platform_share;
         pot.attempts_count = pot.attempts_count + 1;
 
         let attempt_id = registry.next_attempt_id;
