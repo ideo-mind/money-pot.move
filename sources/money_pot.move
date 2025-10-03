@@ -445,7 +445,7 @@ module money_pot::money_pot_manager {
 
         assert!(pot.is_active, E_POT_NOT_ACTIVE);
         assert!(timestamp::now_seconds() >= pot.expires_at, E_NOT_EXPIRED);
-        assert!(signer::address_of(caller) == pot.creator, E_UNAUTHORIZED);
+        // assert!(signer::address_of(caller) == pot.creator, E_UNAUTHORIZED);
 
         pot.is_active = false;
 
