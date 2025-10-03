@@ -1,0 +1,14 @@
+{
+  "dependencies": {},
+  "name": "money-plant-aptos",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@typemove/aptos": "^1.13.3",
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}
