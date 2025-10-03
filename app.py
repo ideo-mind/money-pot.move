@@ -23,7 +23,7 @@ NODE_URL = os.getenv("RPC_URL", "https://fullnode.testnet.aptoslabs.com/v1")
 MODULE_ADDR = (
     os.getenv(
         "MONEY_POT_ADDRESS",
-        "0xe8769b0b3019185cd0261396a9d6159898a9c12928b88780176e5b701fb5c141",
+        "0xea89ef9798a210009339ea6105c2008d8e154f8b5ae1807911c86320ea03ff3f",
     )
 )
 MODULE_QN = f"{MODULE_ADDR}::money_pot_manager"
