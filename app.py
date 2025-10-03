@@ -245,7 +245,7 @@ async def main() -> None:
 
     # Parameters
     amount = int(os.getenv("POT_AMOUNT", "10000"))
-    duration_seconds = int(os.getenv("POT_DURATION", "3600"))
+    duration_seconds = int(os.getenv("POT_DURATION", "360"))
     fee = int(os.getenv("POT_FEE", "100"))
 
     print(f"Using hunter account: {hunter_addr}")
