@@ -11,9 +11,14 @@ import? "local.justfile"
 RPC := env("RPC_URL","https://fullnode.devnet.aptoslabs.com")
 PROFILE := env("APTOS_PROFILE","admin")
 FAUCET_URL := env("FAUCET_URL","https://faucet.devnet.aptoslabs.com")
+MONEY_POT_ADDRESS := env("MONEY_POT_ADDRESS", "0x111111")
 
 # Default network (change to testnet/mainnet as needed)
 network := "testnet"
+
+
+types *ARGS:
+    bun typemove-aptos --network="{{RPC}}" {{MONEY_POT_ADDRESS}}
 
 # Build and compile the Move contract
 build:

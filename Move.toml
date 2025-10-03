@@ -5,7 +5,8 @@ authors = ["Hiro <laciferin@gmail.com>"]
 upgrade_policy = "compatible"
 
 [addresses]
-money_pot = "_"  # Assigned at publish time
+# money_pot = "_"  # Assigned at publish time
+money_pot = "0xac941bf664a93195b5b2a881a771917eaf72108cbfcab30bf1c7a82245b5d7d8"  
 trusted_oracle = "0xb2530c42d161bab8d925e8227ee832bc79ac2edde9218f3b10f4d2385594a230"
 platform = "0x76eccd8c44038ccd0cadebd72e362c5f4c3f530145b70c8fb5b16539566b178b"
 token = "0x69091fbab5f7d635ee7ac5098cf0c1efbe31d68fec0f2cd565e8d168daf52832" #usdc token : can be any token following Fungible token standards

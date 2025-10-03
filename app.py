@@ -22,7 +22,7 @@ NODE_URL = os.getenv("RPC_URL", "https://fullnode.testnet.aptoslabs.com/v1")
 # Module object address from build/justfile
 MODULE_ADDR = (
     os.getenv(
-        "MODULE_ADDRESS",
+        "MONEY_POT_ADDRESS",
         "0xe8769b0b3019185cd0261396a9d6159898a9c12928b88780176e5b701fb5c141",
     )
 )
