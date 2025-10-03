@@ -18,7 +18,7 @@ network := "testnet"
 
 
 types *ARGS:
-    bun typemove-aptos --network="{{RPC}}" {{MONEY_POT_ADDRESS}}
+    bun typemove-aptos --network="{{network}}" {{MONEY_POT_ADDRESS}}
 
 # Build and compile the Move contract
 build:
