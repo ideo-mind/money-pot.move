@@ -30,9 +30,18 @@ MODULE_QN = f"{MODULE_ADDR}::money_pot_manager"
 
 
 def load_main_account_from_env() -> Account:
+    """Load account from APTOS_PRIVATE_KEY environment variable"""
     private_key = os.getenv("APTOS_PRIVATE_KEY")
     if not private_key:
         raise RuntimeError("APTOS_PRIVATE_KEY is not set")
+    return Account.load_key(private_key)
+
+
+def load_hunter_account_from_env() -> Account:
+    """Load hunter account from HUNTER_PRIVATE_KEY environment variable"""
+    private_key = os.getenv("HUNTER_PRIVATE_KEY")
+    if not private_key:
+        raise RuntimeError("HUNTER_PRIVATE_KEY is not set")
     return Account.load_key(private_key)
 
 
@@ -229,40 +238,22 @@ async def get_attempt(client: AsyncRestClient, attempt_id: int) -> dict:
 async def main() -> None:
     client = AsyncRestClient(NODE_URL)
 
-    # Load orchestrator (creator and hunter) from env private key
+    # Load accounts from environment variables
     main_acct = load_main_account_from_env()
-
-    # Generate non-persisted 1FA account address
-    one_fa_tmp = Account.generate()
-    one_fa_addr = one_fa_tmp.account_address
+    hunter_acct = load_hunter_account_from_env()
+    hunter_addr = hunter_acct.account_address
 
     # Parameters
     amount = int(os.getenv("POT_AMOUNT", "10000"))
     duration_seconds = int(os.getenv("POT_DURATION", "3600"))
     fee = int(os.getenv("POT_FEE", "100"))
 
-    print(f"Generated 1FA account: {one_fa_addr}")
-    
-    # Create the 1FA account
-    print("Creating 1FA account...")
-    create_account_tx_hash = await create_account(client, main_acct, one_fa_tmp)
-    print(f"Create account tx: {create_account_tx_hash}")
-    
-    # Fund the 1FA account with some APT for transaction fees
-    print("Funding 1FA account with APT...")
-    fund_tx_hash = await fund_account(client, main_acct, one_fa_addr, 10000000)  # 0.1 APT
-    print(f"Funding tx: {fund_tx_hash}")
-    
-    # Fund the 1FA account with fungible assets for pot attempts
-    # token_address = "0x69091fbab5f7d635ee7ac5098cf0c1efbe31d68fec0f2cd565e8d168daf52832"  # USDC token
-    # print(f"Funding 1FA account with fungible assets...")
-    # fund_fa_tx_hash = await fund_fungible_asset(client, main_acct, one_fa_addr, token_address, 2000000)  # 2 USDC
-    # print(f"Funding FA tx: {fund_fa_tx_hash}")
+    print(f"Using hunter account: {hunter_addr}")
 
-    print(f"Creating pot with amount={amount}, duration={duration_seconds}, fee={fee}, 1FA={one_fa_addr}")
+    print(f"Creating pot with amount={amount}, duration={duration_seconds}, fee={fee}, 1FA={hunter_addr}")
 
     # Create pot and get pot_id from events
-    create_tx_hash = await create_pot(client, main_acct, amount, duration_seconds, fee, one_fa_addr)
+    create_tx_hash = await create_pot(client, main_acct, amount, duration_seconds, fee, hunter_addr)
     print(f"Pot creation tx: {create_tx_hash}")
     
     create_events = await get_transaction_events(client, create_tx_hash)
@@ -272,8 +263,8 @@ async def main() -> None:
         raise RuntimeError("Could not extract pot_id from creation events")
     print(f"Created pot with ID: {pot_id}")
 
-    # Attempt as hunter using the generated 1FA account and get attempt_id from events
-    attempt_tx_hash = await attempt_pot(client, one_fa_tmp, pot_id)
+    # Attempt as hunter using the configured hunter account and get attempt_id from events
+    attempt_tx_hash = await attempt_pot(client, hunter_acct, pot_id)
     print(f"First attempt tx: {attempt_tx_hash}")
     
     attempt_events = await get_transaction_events(client, attempt_tx_hash)
@@ -289,7 +280,7 @@ async def main() -> None:
 
     # Second attempt again, then mark success
     print(f"Making second attempt on pot {pot_id}...")
-    attempt2_tx_hash = await attempt_pot(client, one_fa_tmp, pot_id)
+    attempt2_tx_hash = await attempt_pot(client, hunter_acct, pot_id)
     print(f"Second attempt tx: {attempt2_tx_hash}")
     
     attempt2_events = await get_transaction_events(client, attempt2_tx_hash)
@@ -304,7 +295,7 @@ async def main() -> None:
     print(f"Mark success tx: {success_tx_hash}")
 
     print(f"\nDone! Summary:")
-    print(f"- Pot {pot_id} created with 1FA {one_fa_addr}")
+    print(f"- Pot {pot_id} created with 1FA {hunter_addr}")
     print(f"- First attempt {attempt_id} marked as failed")
     print(f"- Second attempt {attempt2_id} marked as successful")
 
