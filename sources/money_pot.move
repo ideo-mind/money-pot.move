@@ -337,9 +337,8 @@ module money_pot::money_pot_manager {
         // Transfer creator share to pot creator
         primary_fungible_store::transfer(hunter, metadata, pot.creator, creator_share);
         
-        // Transfer platform share to contract
-        primary_fungible_store::transfer(hunter, metadata, resource_addr, platform_share);
-        pot.total_amount = pot.total_amount + platform_share;
+        // Transfer platform share to platform
+        primary_fungible_store::transfer(hunter, metadata, @platform, platform_share);
         pot.attempts_count = pot.attempts_count + 1;
 
         let attempt_id = registry.next_attempt_id;
