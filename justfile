@@ -17,8 +17,11 @@ MONEY_POT_ADDRESS := env("MONEY_POT_ADDRESS", "0x111111")
 network := "testnet"
 
 
-types *ARGS:
+types:
     bun typemove-aptos --network="{{network}}" {{MONEY_POT_ADDRESS}}
+
+publish *ARGS:
+    aptos move publish --url="{{RPC}}" --profile="{{PROFILE}}" {{ARGS}}
 
 # Build and compile the Move contract
 build:
