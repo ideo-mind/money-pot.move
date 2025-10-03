@@ -496,6 +496,11 @@ module money_pot::money_pot_manager {
         @trusted_oracle
     }
 
+    #[view]
+    public fun get_token() : address {
+        @token
+    }
+
     #[test_only]
     public fun get_pot_id(pot: &MoneyPot): u64 { pot.id }
     #[test_only]
