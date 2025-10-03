@@ -70,12 +70,12 @@ module money_pot::money_pot_manager {
         let (resource_signer, signer_cap) = account::create_resource_account(deployer, b"money_pot");
         let resource_address = signer::address_of(&resource_signer);
         
-        move_to(&resource_signer, Registry {
+        move_to(deployer, Registry {
             next_pot_id: 0,
             pots: create<u64, MoneyPot>(),
             next_attempt_id: 0,
             attempts: create<u64, Attempt>(),
-            events: account::new_event_handle<PotEvent>(&resource_signer),
+            events: account::new_event_handle<PotEvent>(deployer),
             signer_cap,
             resource_address,
         });
@@ -499,6 +499,12 @@ module money_pot::money_pot_manager {
     #[view]
     public fun get_token() : address {
         @token
+    }
+
+    #[view]
+    public fun get_resource_address() : address {
+        let registry = borrow_global<Registry>(@money_pot);
+        registry.resource_address
     }
 
     #[test_only]

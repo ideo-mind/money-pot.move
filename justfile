@@ -47,13 +47,10 @@ deploy:
 deploy-profile profile:
     aptos move deploy-object --profile {{profile}} --url {{RPC}} --address-name money_pot --assume-yes
 
-# Upgrade existing contract
-upgrade object-address:
-    aptos move upgrade-object --profile {{PROFILE}} --url {{RPC}} --address-name money_pot --object-address {{object-address}} --assume-yes
 
-# Upgrade with specific profile
-upgrade-profile profile object-address:
-    aptos move upgrade-object --profile {{profile}} --url {{RPC}} --address-name money_pot --object-address {{object-address}} --assume-yes
+# Upgrade existing contract
+upgrade object-address=MONEY_POT_ADDRESS:
+    aptos move upgrade-object --profile {{PROFILE}} --url {{RPC}} --address-name money_pot --object-address {{object-address}} --assume-yes
 
 # Get account info
 account-info:
