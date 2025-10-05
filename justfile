@@ -88,9 +88,11 @@ get-attempt attempt-id:
 expire-pot pot-id:
     aptos move run --profile {{PROFILE}} --url {{RPC}} --function-id {{MONEY_POT_ADDRESS}}::money_pot_manager::expire_pot --args u64:{{pot-id}}
 
+
+
 # Expire all expired pots automatically
 expire-pots:
-    python3 scripts/expire_pots.py
+    uv run scripts/expire_pots.py
 
 
 # Full deployment workflow

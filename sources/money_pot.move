@@ -516,16 +516,14 @@ module money_pot::money_pot_manager {
 
     #[test_only]
     public fun get_pot_id(pot: &MoneyPot): u64 { pot.id }
-    #[test_only]
     public fun get_pot_creator(pot: &MoneyPot): address { pot.creator }
-    #[test_only]
     public fun get_pot_total_amount(pot: &MoneyPot): u64 { pot.total_amount }
     #[test_only]
     public fun get_pot_fee(pot: &MoneyPot): u64 { pot.fee }
-    #[test_only]
     public fun get_pot_is_active(pot: &MoneyPot): bool { pot.is_active }
     #[test_only]
     public fun get_pot_attempts_count(pot: &MoneyPot): u64 { pot.attempts_count }
+    public fun get_pot_expires_at(pot: &MoneyPot): u64 { pot.expires_at }
     #[test_only]
     public fun get_attempt_id(attempt: &Attempt): u64 { attempt.id }
     #[test_only]
