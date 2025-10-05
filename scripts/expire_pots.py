@@ -4,122 +4,144 @@ Script to expire all expired pots in the Money Pot contract.
 This script fetches all active pots and attempts to expire those that have passed their expiration time.
 """
 
-import json
-import subprocess
-import sys
+import os
+import asyncio
 import time
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional, Tuple
+from dotenv import load_dotenv
 
-def run_aptos_command(command: List[str]) -> Dict[str, Any]:
-    """Run an aptos CLI command and return the parsed JSON output."""
-    try:
-        result = subprocess.run(command, capture_output=True, text=True, check=True)
-        return json.loads(result.stdout)
-    except subprocess.CalledProcessError as e:
-        print(f"Error running command {' '.join(command)}: {e}")
-        print(f"stderr: {e.stderr}")
-        sys.exit(1)
-    except json.JSONDecodeError as e:
-        print(f"Error parsing JSON output: {e}")
-        print(f"Raw output: {result.stdout}")
-        sys.exit(1)
+from aptos_sdk.account import Account
+from aptos_sdk.async_client import RestClient as AsyncRestClient
+from aptos_sdk.bcs import Serializer
+from aptos_sdk.transactions import (
+    EntryFunction,
+    TransactionArgument,
+    TransactionPayload,
+)
+from aptos_sdk.account_address import AccountAddress
 
-def get_active_pots(rpc_url: str, contract_address: str) -> List[int]:
+load_dotenv()
+
+NODE_URL = os.getenv("RPC_URL", "https://fullnode.testnet.aptoslabs.com/v1")
+MODULE_ADDR = os.getenv(
+    "MONEY_POT_ADDRESS",
+    "0xea89ef9798a210009339ea6105c2008d8e154f8b5ae1807911c86320ea03ff3f",
+)
+MODULE_QN = f"{MODULE_ADDR}::money_pot_manager"
+
+def load_account_from_env() -> Account:
+    """Load account from APTOS_PRIVATE_KEY environment variable"""
+    private_key = os.getenv("APTOS_PRIVATE_KEY")
+    if not private_key:
+        raise RuntimeError("APTOS_PRIVATE_KEY is not set")
+    return Account.load_key(private_key)
+
+async def submit_transaction(client: AsyncRestClient, account: Account, payload: TransactionPayload) -> str:
+    """Submit a transaction and return the hash"""
+    signed_txn = await client.create_bcs_signed_transaction(account, payload)
+    result = await client.submit_and_wait_for_bcs_transaction(signed_txn)
+    return result["hash"]
+
+async def get_active_pots(client: AsyncRestClient) -> List[int]:
     """Get all active pot IDs from the contract."""
-    command = [
-        "aptos", "move", "view",
-        "--url", rpc_url,
-        "--function-id", f"{contract_address}::money_pot_manager::get_active_pots"
-    ]
-    
-    result = run_aptos_command(command)
-    
-    # Extract pot IDs from the Result wrapper and convert strings to integers
-    if isinstance(result, dict) and "Result" in result:
-        pot_ids_raw = result["Result"]
-        if isinstance(pot_ids_raw, list) and len(pot_ids_raw) > 0:
-            # Convert string IDs to integers
-            return [int(pot_id) for pot_id in pot_ids_raw[0]]
-    
-    print(f"Unexpected result format: {result}")
-    return []
+    res = await client.view(f"{MODULE_QN}::get_active_pots", [], [])
+    return [int(x) for x in res]
 
-def get_pot_details(rpc_url: str, contract_address: str, pot_id: int) -> Dict[str, Any]:
+async def get_pot_details(client: AsyncRestClient, pot_id: int) -> Dict[str, Any]:
     """Get detailed information about a specific pot."""
-    command = [
-        "aptos", "move", "view",
-        "--url", rpc_url,
-        "--function-id", f"{contract_address}::money_pot_manager::get_pot",
-        "--args", f"u64:{pot_id}"
-    ]
-    
-    result = run_aptos_command(command)
-    
-    # Extract pot details from the Result wrapper
-    if isinstance(result, dict) and "Result" in result:
-        pot_data = result["Result"]
-        # If it's a list with one element, extract that element
-        if isinstance(pot_data, list) and len(pot_data) > 0:
-            return pot_data[0]
-        return pot_data
-    
-    print(f"Unexpected pot details format: {result}")
-    return {}
+    res = await client.view(f"{MODULE_QN}::get_pot", [], [str(pot_id)])
+    return res if isinstance(res, dict) else {}
 
-def expire_pot(rpc_url: str, contract_address: str, profile: str, pot_id: int) -> tuple[bool, str]:
+async def expire_pot(client: AsyncRestClient, account: Account, pot_id: int) -> Tuple[bool, str]:
     """Attempt to expire a specific pot. Returns (success, tx_hash)."""
-    command = [
-        "aptos", "move", "run",
-        "--profile", profile,
-        "--url", rpc_url,
-        "--function-id", f"{contract_address}::money_pot_manager::expire_pot",
-        "--args", f"u64:{pot_id}"
-    ]
-    
     try:
         print(f"🔄 Expiring pot {pot_id}...")
-        result = subprocess.run(command, capture_output=True, text=True, check=True)
         
-        # Parse the transaction hash from the output
-        tx_hash = "unknown"
-        try:
-            result_json = json.loads(result.stdout)
-            if "hash" in result_json:
-                tx_hash = result_json["hash"]
-            elif "transaction" in result_json and "hash" in result_json["transaction"]:
-                tx_hash = result_json["transaction"]["hash"]
-        except (json.JSONDecodeError, KeyError):
-            # Try to extract hash from text output
-            lines = result.stdout.split('\n')
-            for line in lines:
-                if 'hash' in line.lower() and len(line.split()) > 1:
-                    tx_hash = line.split()[-1]
-                    break
+        entry = EntryFunction.natural(
+            MODULE_QN,
+            "expire_pot",
+            [],
+            [TransactionArgument(pot_id, Serializer.u64)],
+        )
+        
+        payload = TransactionPayload(entry)
+        tx_hash = await submit_transaction(client, account, payload)
         
         print(f"✅ Pot {pot_id} expired successfully!")
         print(f"   📝 TX Hash: {tx_hash}")
         print(f"   🔗 Explorer: https://explorer.aptoslabs.com/txn/{tx_hash}")
         print("-" * 40)
         return True, tx_hash
-    except subprocess.CalledProcessError as e:
-        print(f"❌ Failed to expire pot {pot_id}: {e.stderr}")
+    except Exception as e:
+        print(f"❌ Failed to expire pot {pot_id}: {e}")
         return False, "failed"
 
 def get_current_timestamp() -> int:
     """Get current Unix timestamp."""
     return int(time.time())
 
-def main():
-    """Main function to expire all expired pots."""
-    # Get configuration from environment variables
-    rpc_url = os.environ.get("RPC_URL", "https://fullnode.devnet.aptoslabs.com")
-    contract_address = os.environ.get("MONEY_POT_ADDRESS", "0x111111")
-    profile = os.environ.get("APTOS_PROFILE", "admin")
+async def expire_pots_batch(client: AsyncRestClient, account: Account, pot_ids: List[int]) -> List[Tuple[int, str]]:
+    """Expire multiple pots in batches of 3 using the Move script."""
+    successful_txs = []
     
-    print(f"🔍 Fetching active pots from contract {contract_address}...")
+    # Process pots in batches of 3
+    for i in range(0, len(pot_ids), 3):
+        batch = pot_ids[i:i+3]
+        # Pad with 0s if batch is smaller than 3
+        while len(batch) < 3:
+            batch.append(0)
+        
+        try:
+            print(f"🚀 Expiring batch {i//3 + 1}: pots {batch[:3] if batch[2] != 0 else batch[:2] if batch[1] != 0 else [batch[0]]}")
+            
+            entry = EntryFunction.natural(
+                MODULE_QN,
+                "expire_multiple_pots",
+                [],
+                [
+                    TransactionArgument(batch[0], Serializer.u64),
+                    TransactionArgument(batch[1], Serializer.u64),
+                    TransactionArgument(batch[2], Serializer.u64),
+                ],
+            )
+            
+            payload = TransactionPayload(entry)
+            tx_hash = await submit_transaction(client, account, payload)
+            
+            print(f"✅ Batch expired successfully!")
+            print(f"   📝 TX Hash: {tx_hash}")
+            print(f"   🔗 Explorer: https://explorer.aptoslabs.com/txn/{tx_hash}")
+            print("-" * 40)
+            
+            # Add all non-zero pot IDs to successful list
+            for pot_id in batch:
+                if pot_id != 0:
+                    successful_txs.append((pot_id, tx_hash))
+                    
+        except Exception as e:
+            print(f"❌ Failed to expire batch: {e}")
+            # Try individual expiration for this batch
+            for pot_id in batch:
+                if pot_id != 0:
+                    try:
+                        success, tx_hash = await expire_pot(client, account, pot_id)
+                        if success:
+                            successful_txs.append((pot_id, tx_hash))
+                    except Exception as individual_error:
+                        print(f"❌ Failed to expire pot {pot_id} individually: {individual_error}")
+    
+    return successful_txs
+
+async def main():
+    """Main function to expire all expired pots efficiently."""
+    print(f"🔍 Fetching active pots from contract {MODULE_ADDR}...")
+    
+    # Initialize client and account
+    client = AsyncRestClient(NODE_URL)
+    account = load_account_from_env()
     
     # Get all active pots
-    active_pot_ids = get_active_pots(rpc_url, contract_address)
+    active_pot_ids = await get_active_pots(client)
     print(f"📋 Found {len(active_pot_ids)} active pots")
     
     if not active_pot_ids:
@@ -127,66 +149,51 @@ def main():
         return
     
     current_time = get_current_timestamp()
-    
-    # Check each pot for expiration and expire immediately if expired
     print(f"⏰ Current timestamp: {current_time}")
-    print("🔍 Checking pots for expiration...")
-    print("=" * 60)
     
-    success_count = 0
-    successful_txs = []
-    failed_pots = []
-    active_count = 0
+    # Filter for expired pots efficiently
+    print("🔍 Filtering for expired pots...")
+    expired_pot_ids = []
     
-    for i, pot_id in enumerate(active_pot_ids, 1):
-        pot_details = get_pot_details(rpc_url, contract_address, pot_id)
+    # Process in smaller batches to avoid overwhelming the RPC
+    batch_size = 50
+    for i in range(0, len(active_pot_ids), batch_size):
+        batch = active_pot_ids[i:i+batch_size]
+        print(f"Checking batch {i//batch_size + 1}/{(len(active_pot_ids) + batch_size - 1)//batch_size} ({len(batch)} pots)...")
         
-        # Extract pot information
-        expires_at = int(pot_details.get("expires_at", 0))
-        is_active = pot_details.get("is_active", False)
-        creator = pot_details.get("creator", "unknown")
-        total_amount = pot_details.get("total_amount", 0)
+        # Get pot details for this batch
+        tasks = [get_pot_details(client, pot_id) for pot_id in batch]
+        pot_details_list = await asyncio.gather(*tasks)
         
-        print(f"\n[{i}/{len(active_pot_ids)}] Pot {pot_id}: expires_at={expires_at}, active={is_active}, creator={creator}, amount={total_amount}")
-        
-        if is_active and current_time >= expires_at:
-            expired_seconds_ago = current_time - expires_at
-            print(f"  ⏰ Pot {pot_id} is expired (expired {expired_seconds_ago} seconds ago)")
-            print(f"  🚀 Expiring immediately...")
+        for pot_id, pot_details in zip(batch, pot_details_list):
+            expires_at = int(pot_details.get("expires_at", 0))
+            is_active = pot_details.get("is_active", False)
             
-            success, tx_hash = expire_pot(rpc_url, contract_address, profile, pot_id)
-            if success:
-                success_count += 1
-                successful_txs.append((pot_id, tx_hash))
-            else:
-                failed_pots.append(pot_id)
-        else:
-            active_count += 1
-            print(f"  ✅ Pot {pot_id} is still active")
-        
-        # Show progress
-        print(f"Progress: {success_count} expired, {active_count} still active, {len(failed_pots)} failed")
+            if is_active and expires_at > 0 and current_time >= expires_at:
+                expired_pot_ids.append(pot_id)
     
-    if success_count == 0 and active_count == len(active_pot_ids):
-        print("\n✨ No expired pots found - all pots are still active")
+    print(f"⏰ Found {len(expired_pot_ids)} expired pots")
+    
+    if not expired_pot_ids:
+        print("✨ No expired pots found - all pots are still active")
         return
     
+    print(f"🚀 Expiring {len(expired_pot_ids)} expired pots...")
+    print("=" * 60)
+    
+    # Expire all expired pots using batch processing
+    successful_txs = await expire_pots_batch(client, account, expired_pot_ids)
+    
     print(f"\n📊 Summary:")
-    print(f"  Total pots checked: {len(active_pot_ids)}")
-    print(f"  Successfully expired: {success_count}")
-    print(f"  Still active: {active_count}")
-    print(f"  Failed to expire: {len(failed_pots)}")
+    print(f"  Total active pots checked: {len(active_pot_ids)}")
+    print(f"  Expired pots found: {len(expired_pot_ids)}")
+    print(f"  Successfully expired: {len(successful_txs)}")
+    print(f"  Failed to expire: {len(expired_pot_ids) - len(successful_txs)}")
     
     if successful_txs:
         print(f"\n✅ Successful transactions:")
         for pot_id, tx_hash in successful_txs:
             print(f"  Pot {pot_id}: {tx_hash}")
-    
-    if failed_pots:
-        print(f"\n❌ Failed pots:")
-        for pot_id in failed_pots:
-            print(f"  Pot {pot_id}")
 
 if __name__ == "__main__":
-    import os
-    main()
+    asyncio.run(main())
