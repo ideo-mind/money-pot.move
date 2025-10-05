@@ -6,7 +6,7 @@ set dotenv-filename := ".env"
 set export
 
 
-import? "local.justfile"
+import "local.justfile"
 
 RPC := env("RPC_URL","https://fullnode.devnet.aptoslabs.com")
 PROFILE := env("APTOS_PROFILE","admin")
