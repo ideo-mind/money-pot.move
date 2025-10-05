@@ -36,8 +36,8 @@ jobs:
           # Create aptos config directory
           mkdir -p ~/.aptos
 
-          # Initialize aptos with private key
-          echo "${{ secrets.APTOS_PRIVATE_KEY }}" | aptos init --network testnet --private-key-file /dev/stdin --profile github-action
+          # Initialize aptos with private key (skip faucet and browser)
+          echo "${{ secrets.APTOS_PRIVATE_KEY }}" | aptos init --network testnet --private-key-file /dev/stdin --profile github-action --skip-faucet
 
           # Verify profile was created
           aptos account list --profile github-action
