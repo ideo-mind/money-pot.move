@@ -77,7 +77,7 @@ async def expire_pot(client: AsyncRestClient, account: Account, pot_id: int) -> 
 async def expire_pots_randomly(client: AsyncRestClient, account: Account, pot_ids: List[int]) -> List[Tuple[int, str]]:
     """Expire pots randomly, removing each pot after attempting to expire it."""
     successful_txs = []
-    remaining_pots = pot_ids # Work with a copy to avoid modifying the original
+    remaining_pots =list(set(pot_ids.copy()))  # Work with a copy to avoid modifying the original
     
     attempt_count = 0
     while remaining_pots:
