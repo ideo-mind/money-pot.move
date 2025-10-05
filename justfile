@@ -86,13 +86,20 @@ get-attempt attempt-id:
 
 # Expire a specific pot
 expire-pot pot-id:
-    aptos move run --profile {{PROFILE}} --url {{RPC}} --function-id {{MONEY_POT_ADDRESS}}::money_pot_manager::expire_pot --args u64:{{pot-id}}
+    aptos move run --profile {{PROFILE}} --url {{RPC}} --function-id {{MONEY_POT_ADDRESS}}::money_pot_manager::expire_pot --args u64:{{pot-id}} --assume-yes
 
+expire-pots:
+   #!/bin/bash
+
+   pots=$(just get-active-pots | jq -r '.Result[0][]')
+   for pot in $pots; do
+      just expire-pot $pot
+   done
 
 
 # Expire all expired pots automatically
-expire-pots:
-    uv run scripts/expire_pots.py
+# expire-pots:
+#     uv run scripts/expire_pots.py
 
 
 # Full deployment workflow
