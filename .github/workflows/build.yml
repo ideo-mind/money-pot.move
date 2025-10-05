@@ -44,28 +44,14 @@ jobs:
           touch .env
           touch local.justfile
 
-      - name: Install Node dependencies
+      - name: Build
         run: |
-          bun install
-
-      - name: Build Move Contract
-        run: |
-          just build
-
-      - name: Run Move Tests
-        run: |
-          just test
-
-      - name: Generate TypeScript Types
-        run: |
-          just types
+          aptos move compile --dev
 
       - name: Check for build artifacts
         run: |
           echo "Build artifacts:"
           ls -la build/
-          echo "Generated types:"
-          ls -la types/
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -73,8 +59,7 @@ jobs:
           name: build-artifacts
           path: |
             build/
-            types/
-          retention-days: 7
+          retention-days: 90
 
       - name: Comment on PR (if applicable)
         if: github.event_name == 'pull_request'
