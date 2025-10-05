@@ -73,13 +73,20 @@ async def expire_pot(client: AsyncRestClient, account: Account, pot_id: int) -> 
 
 
 async def expire_pots_individually(client: AsyncRestClient, account: Account, pot_ids: List[int]) -> List[Tuple[int, str]]:
-    """Expire pots one by one."""
+    """Expire pots one by one with pauses to respect compute unit limits."""
     successful_txs = []
     
-    for pot_id in pot_ids:
+    for i, pot_id in enumerate(pot_ids):
         success, tx_hash = await expire_pot(client, account, pot_id)
         if success:
             successful_txs.append((pot_id, tx_hash))
+        
+        # Pause between transactions to respect compute unit limits
+        # 50k compute units per 300 seconds = ~167 units per second
+        # Each expire_pot transaction uses ~1000-2000 units, so pause 10-20 seconds
+        if i < len(pot_ids) - 1:  # Don't pause after the last pot
+            print("⏸️  Pausing 15 seconds to respect compute unit limits...")
+            await asyncio.sleep(15)
     
     return successful_txs
 
