@@ -11,7 +11,7 @@ env:
   MONEY_POT_ADDRESS: "0xea89ef9798a210009339ea6105c2008d8e154f8b5ae1807911c86320ea03ff3f"
 
 jobs:
-  build-and-test:
+  build:
     runs-on: ubuntu-latest
 
     steps:
