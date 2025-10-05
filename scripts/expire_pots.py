@@ -7,6 +7,7 @@ This script fetches all active pots and attempts to expire those that have passe
 import os
 import asyncio
 import time
+import random
 from typing import List, Dict, Any, Optional, Tuple
 from dotenv import load_dotenv
 
@@ -72,19 +73,30 @@ async def expire_pot(client: AsyncRestClient, account: Account, pot_id: int) -> 
         return False, "failed"
 
 
-async def expire_pots_individually(client: AsyncRestClient, account: Account, pot_ids: List[int]) -> List[Tuple[int, str]]:
-    """Expire pots one by one with pauses to respect compute unit limits."""
+async def expire_pots_randomly(client: AsyncRestClient, account: Account, pot_ids: List[int]) -> List[Tuple[int, str]]:
+    """Expire pots randomly, removing each pot after attempting to expire it."""
     successful_txs = []
+    remaining_pots = pot_ids.copy()  # Work with a copy to avoid modifying the original
     
-    for i, pot_id in enumerate(pot_ids):
+    attempt_count = 0
+    while remaining_pots:
+        attempt_count += 1
+        
+        # Randomly select a pot
+        pot_id = random.choice(remaining_pots)
+        print(f"🎲 Attempt #{attempt_count}: Randomly selected pot {pot_id}")
+        
+        # Try to expire the pot
         success, tx_hash = await expire_pot(client, account, pot_id)
         if success:
             successful_txs.append((pot_id, tx_hash))
         
+        # Remove the pot from the list (whether successful or not)
+        remaining_pots.remove(pot_id)
+        print(f"📋 Remaining pots to try: {len(remaining_pots)}")
+        
         # Pause between transactions to respect compute unit limits
-        # 50k compute units per 300 seconds = ~167 units per second
-        # Each expire_pot transaction uses ~1000-2000 units, so pause 10-20 seconds
-        if i < len(pot_ids) - 1:  # Don't pause after the last pot
+        if remaining_pots:  # Don't pause after the last pot
             print("⏸️  Pausing 15 seconds to respect compute unit limits...")
             await asyncio.sleep(15)
     
@@ -106,11 +118,11 @@ async def main():
         print("✨ No active pots to try expiring")
         return
     
-    print(f"🚀 Trying to expire {len(active_pot_ids)} active pots...")
+    print(f"🚀 Trying to expire {len(active_pot_ids)} active pots randomly...")
     print("=" * 60)
     
-    # Try to expire all active pots individually
-    successful_txs = await expire_pots_individually(client, account, active_pot_ids)
+    # Try to expire all active pots randomly
+    successful_txs = await expire_pots_randomly(client, account, active_pot_ids)
     
     print(f"\n📊 Summary:")
     print(f"  Total active pots: {len(active_pot_ids)}")
