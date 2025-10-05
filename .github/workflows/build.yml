@@ -1,0 +1,88 @@
+name: Aptos Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch: # Allow manual triggering
+
+env:
+  MONEY_POT_ADDRESS: 0xea89ef9798a210009339ea6105c2008d8e154f8b5ae1807911c86320ea03ff3f
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Just
+        uses: extractions/setup-just@v1
+        with:
+          just-version: "1.14.0"
+
+      - name: Install Aptos CLI
+        run: |
+          curl -fsSL "https://aptos.dev/scripts/install_cli.py" | python3
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install uv
+
+      - name: Set Environment Variables
+        run: |
+          echo "RPC_URL=https://fullnode.testnet.aptoslabs.com/v1" >> $GITHUB_ENV
+          echo "APTOS_PROFILE=github-action" >> $GITHUB_ENV
+
+      - name: Install Node dependencies
+        run: |
+          bun install
+
+      - name: Build Move Contract
+        run: |
+          just build
+
+      - name: Run Move Tests
+        run: |
+          just test
+
+      - name: Generate TypeScript Types
+        run: |
+          just types
+
+      - name: Check for build artifacts
+        run: |
+          echo "Build artifacts:"
+          ls -la build/
+          echo "Generated types:"
+          ls -la types/
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: |
+            build/
+            types/
+          retention-days: 7
+
+      - name: Comment on PR (if applicable)
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '✅ **Aptos Build Successful!**\n\n- Move contract compiled successfully\n- All tests passed\n- TypeScript types generated\n- Build artifacts uploaded'
+            })
