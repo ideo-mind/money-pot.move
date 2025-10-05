@@ -84,6 +84,14 @@ get-pot pot-id:
 get-attempt attempt-id:
     aptos move view --url {{RPC}} --function-id {{MONEY_POT_ADDRESS}}::money_pot_manager::get_attempt --args u64:{{attempt-id}}
 
+# Expire a specific pot
+expire-pot pot-id:
+    aptos move run --profile {{PROFILE}} --url {{RPC}} --function-id {{MONEY_POT_ADDRESS}}::money_pot_manager::expire_pot --args u64:{{pot-id}}
+
+# Expire all expired pots automatically
+expire-pots:
+    python3 scripts/expire_pots.py
+
 
 # Full deployment workflow
 deploy-full:
@@ -114,6 +122,8 @@ help:
     @echo "  get-active-pots    - List active pots"
     @echo "  get-pot <id>       - Get pot details"
     @echo "  get-attempt <id>   - Get attempt details"
+    @echo "  expire-pot <id>    - Expire a specific pot"
+    @echo "  expire-pots        - Automatically expire all expired pots"
     @echo "  deploy-full        - Complete deployment workflow"
     @echo "  clean              - Clean build artifacts"
     @echo ""
@@ -125,6 +135,8 @@ help:
     @echo "  just deploy-full"
     @echo "  just create-pot 1000000 3600 100000 0x123..."
     @echo "  just attempt-pot 0"
+    @echo "  just expire-pot 0"
+    @echo "  just expire-pots"
     @echo ""
     @echo "Environment configuration:"
     @echo "  export RPC_URL=https://fullnode.testnet.aptoslabs.com"
