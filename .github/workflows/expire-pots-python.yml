@@ -15,7 +15,7 @@ env:
   EXPIRE_INTERVAL_SECONDS: "10" # Configurable interval between pot expiration attempts
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}
   cancel-in-progress: true
 
 jobs:
