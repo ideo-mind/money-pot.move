@@ -1,0 +1,55 @@
+name: Auto Expire Pots
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    # Run every hour at minute 0
+    - cron: "*/30 * * * *"
+  workflow_dispatch: # Allow manual triggering
+
+env:
+  MONEY_POT_ADDRESS: 0xea89ef9798a210009339ea6105c2008d8e154f8b5ae1807911c86320ea03ff3f
+  APTOS_PROFILE: github-action
+  APTOS_PRIVATE_KEY: ${{ secrets.APTOS_PRIVATE_KEY }}
+
+jobs:
+  expire-pots:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Just
+        uses: extractions/setup-just@v1
+        with:
+          just-version: "1.14.0"
+
+      - name: Install Aptos CLI
+        run: |
+          curl -fsSL "https://aptos.dev/scripts/install_cli.py" | python3
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Setup Aptos Profile
+        run: |
+          # Create aptos config directory
+          mkdir -p ~/.aptos
+
+          # Initialize aptos with private key
+          echo "${{ secrets.APTOS_PRIVATE_KEY }}" | aptos init --network testnet --private-key-file /dev/stdin --profile github-action
+
+          # Verify profile was created
+          aptos account list --profile github-action
+
+      - name: Set Environment Variables
+        run: |
+          echo "RPC_URL=https://fullnode.testnet.aptoslabs.com/v1" >> $GITHUB_ENV
+
+      - name: Get Active Pots
+        run: |
+          just get-active-pots
+
+      - name: Expire All Pots
+        run: |
+          just expire-pots
