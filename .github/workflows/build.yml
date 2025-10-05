@@ -41,7 +41,7 @@ jobs:
       - name: Set Environment Variables
         run: |
           echo "RPC_URL=https://fullnode.testnet.aptoslabs.com/v1" >> $GITHUB_ENV
-
+          touch .env
           touch local.justfile
 
       - name: Install Node dependencies
