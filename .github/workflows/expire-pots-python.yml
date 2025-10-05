@@ -5,13 +5,18 @@ on:
     branches: [main]
   schedule:
     # Run every 30 minutes
-    - cron: "*/30 * * * *"
+    - cron: "*/10 * * * *"
   workflow_dispatch: # Allow manual triggering
 
 env:
   MONEY_POT_ADDRESS: "0xea89ef9798a210009339ea6105c2008d8e154f8b5ae1807911c86320ea03ff3f"
   RPC_URL: "https://fullnode.testnet.aptoslabs.com/v1"
   APTOS_PRIVATE_KEY: ${{ secrets.APTOS_PRIVATE_KEY }}
+  EXPIRE_INTERVAL_SECONDS: "10" # Configurable interval between pot expiration attempts
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   expire-pots:

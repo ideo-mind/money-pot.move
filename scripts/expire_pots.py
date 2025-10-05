@@ -29,6 +29,7 @@ MODULE_ADDR = os.getenv(
     "0xea89ef9798a210009339ea6105c2008d8e154f8b5ae1807911c86320ea03ff3f",
 )
 MODULE_QN = f"{MODULE_ADDR}::money_pot_manager"
+INTERVAL_SECONDS = int(os.getenv("EXPIRE_INTERVAL_SECONDS", "15"))
 
 def load_account_from_env() -> Account:
     """Load account from APTOS_PRIVATE_KEY environment variable"""
@@ -97,8 +98,8 @@ async def expire_pots_randomly(client: AsyncRestClient, account: Account, pot_id
         
         # Pause between transactions to respect compute unit limits
         if remaining_pots:  # Don't pause after the last pot
-            print("⏸️  Pausing 15 seconds to respect compute unit limits...")
-            await asyncio.sleep(15)
+            print(f"⏸️  Pausing {INTERVAL_SECONDS} seconds to respect compute unit limits...")
+            await asyncio.sleep(INTERVAL_SECONDS)
     
     return successful_txs
 
