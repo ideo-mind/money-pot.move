@@ -1,0 +1,40 @@
+name: Auto Expire Pots (Python)
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    # Run every 30 minutes
+    - cron: "*/30 * * * *"
+  workflow_dispatch: # Allow manual triggering
+
+env:
+  MONEY_POT_ADDRESS: "0xea89ef9798a210009339ea6105c2008d8e154f8b5ae1807911c86320ea03ff3f"
+  RPC_URL: "https://fullnode.testnet.aptoslabs.com/v1"
+  APTOS_PRIVATE_KEY: ${{ secrets.APTOS_PRIVATE_KEY }}
+
+jobs:
+  expire-pots:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+
+      - name: Install dependencies
+        run: |
+          uv sync
+
+      - name: Set Environment Variables
+        run: |
+          echo "RPC_URL=https://fullnode.testnet.aptoslabs.com/v1" >> $GITHUB_ENV
+          echo "MONEY_POT_ADDRESS=0xea89ef9798a210009339ea6105c2008d8e154f8b5ae1807911c86320ea03ff3f" >> $GITHUB_ENV
+
+      - name: Run Python Expire Pots Script
+        run: |
+          uv run scripts/expire_pots.py
