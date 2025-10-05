@@ -31,6 +31,8 @@ jobs:
           curl -fsSL "https://aptos.dev/scripts/install_cli.py" | python3
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
+          touch local.justfile
+
       - name: Setup Aptos Profile
         run: |
           # Create aptos config directory
