@@ -36,8 +36,16 @@ jobs:
           # Create aptos config directory
           mkdir -p ~/.aptos
 
-          # Initialize aptos with private key (skip faucet and browser)
-          echo "${{ secrets.APTOS_PRIVATE_KEY }}" | aptos init --network testnet --private-key-file /dev/stdin --profile github-action --skip-faucet
+          # Create profile config manually to avoid browser issues
+          cat > ~/.aptos/config.yaml << EOF
+          profiles:
+            github-action:
+              private_key: "${{ secrets.APTOS_PRIVATE_KEY }}"
+              public_key: ""
+              account: ""
+              rest_url: "https://fullnode.testnet.aptoslabs.com/v1"
+              faucet_url: "https://faucet.testnet.aptoslabs.com"
+          EOF
 
           # Verify profile was created
           aptos account list --profile github-action
