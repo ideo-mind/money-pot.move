@@ -94,6 +94,8 @@ expire-pots:
    pots=$(just get-active-pots | jq -r '.Result[0][]')
    for pot in $pots; do
       just expire-pot $pot
+      sleep 30 
+      echo "Sleeping to avoid rate limiting"
    done
 
 
